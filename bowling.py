@@ -15,6 +15,8 @@ from pathlib import Path
 import time
 import pandas as pd
 import plotter # @unresolvedimport
+from subprocess import check_output
+
 
 class Window(Frame):
     
@@ -324,16 +326,34 @@ class Window(Frame):
         else:
             
             # Get all data necessary to build all the selected plots
+            # create file paths for image file and json data file used to tranfser
+            # plot information to python script which creates plot
+            # I uses an independent python script to do this because I couldn't make it work otherwise
+            # I was getting strange behavor with matplot lib:
+                # closing the program when I ran - plt.savefig(plotimagefilepath, bbox_inches='tight')
+                # getting suck and not continuing the script when I ran - plt.show()
+            
             query_df = self.bowling_db.plotreportquery(bowler, seasonleagues)
+            jsonreportdata = os.path.join(utils_directory, 'Report_data.txt')
             tempfigfilepath = os.path.join(utils_directory, 'TempFig.png')
-            plotter.report_plot(df=query_df, seasonleagues=seasonleagues, y_axis_columns=self.y_axis_columns, bowler=bowler, plots=plots, plotimagefilepath=tempfigfilepath)
             
-#             pdffilepath = self.file_save(dialogtitle='Save Bowling Report to pdf', ftype='pdf', fdescription='pdf Files', defalut_db_path=os.path.join('T:\\', 'TC', 'Documents', 'BowlingLeagues'))
-#             plotter.writepdf(imagelist=[tempfigfilepath], pdffilepath=pdffilepath)
-#             plotter.closeplot()
-#             os.remove(tempfigfilepath)
-        print('hello?')
+            # Prompt user for pdf file path that plot will be built into
+            pdffilepath = self.file_save(dialogtitle='Save Bowling Report to pdf', ftype='pdf', fdescription='pdf Files', 
+                                         defalut_db_path=os.path.join('T:\\', 'TC', 'Documents', 'BowlingLeagues'))
             
+            # if user provided a valid pdf file path, then create the report
+            if pdffilepath != None:
+                JSON_Tools.dump_Data_To_File(jsonreportdata, df=query_df.to_json(orient='records'), seasonleagues=seasonleagues, y_axis_columns=self.y_axis_columns, 
+                                             bowler=bowler, plots=plots, plotimagefilepath=tempfigfilepath, pdffilepath=pdffilepath)
+                
+                stdout = check_output('python reportbuilder.py {r}'.format(r=jsonreportdata), shell=True, universal_newlines=True)
+                print(stdout)
+                
+            # If no pdf file path is provided (user hits cancel) no report will be made
+            else:
+                self.statusmsg.set("Action Aborted, not reported created.\n\n")
+                
+                                
     def add_season_league(self, param):
         seasonleague_lbox = param
         new_season_league_user_entry = self.content.get()
@@ -388,7 +408,7 @@ class Window(Frame):
             
         elif event == 'report': # report button click
             self.create_plot_report(bowler, plots, seasonleagues)
-            self.statusmsg.set(self.message_builder(bowler=bowler, plots=plots, seasonleague=seasonleagues, message_appendage='\t\t\tSelected Plot Report Created'))
+#             self.statusmsg.set(self.message_builder(bowler=bowler, plots=plots, seasonleague=seasonleagues, message_appendage='\t\t\tSelected Plot Report Created'))
             
         elif event == 'load': # load button click
             self.load_data(param['bowlers_lbox'], param['seasonleague_lbox'], seasonleagues)
@@ -491,6 +511,8 @@ class Window(Frame):
             self.statusmsg.set('Current Database Connection: {db}\n\n'.format(db=self.master.file))
         except AttributeError:
             self.statusmsg.set('No Database Connection Established\n\n')
+            
+    
         
 
 if __name__ == '__main__':
