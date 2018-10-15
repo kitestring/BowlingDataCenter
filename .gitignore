@@ -1,11 +1,8 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
-
 # Other files and folders
 .settings/
+.git/
+__pycache__/
+developmentalmaterials/
 
 # Executables
 *.swf
