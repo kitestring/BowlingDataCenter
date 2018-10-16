@@ -40,12 +40,15 @@ if __name__ == '__main__':
     ax = []
     
     # Build season bests string
-    season_best = 'Season - League\tHigh Game\tLow Game\tHigh Series\tLow Series'
+    season_best = 'Season - League\tHigh Game\tLow Game\tHigh Series\tLow Series\tAverage'
     for sl in seasonleagues:
         # Determine high and low games & series for season league
         Gm1 = df['Gm1'][df['Season_League'] == sl]
         Gm2 = df['Gm2'][df['Season_League'] == sl]
         Gm3 = df['Gm3'][df['Season_League'] == sl]
+        
+        CurrentAverage = df['Avg_After'][df['Date'] == df['Date'].max()].tolist()
+        CurrentAverage = str(CurrentAverage[0])
         
         highgame = str(max([Gm1.max(), Gm2.max(), Gm3.max()]))
         highgame = highgame + (" " * (9 - len(highgame))) # uses spaces and monotype font to get the text alignment correct \t doesnt work in matplotlib 
@@ -56,10 +59,11 @@ if __name__ == '__main__':
         highseries = str(seriesscratch.max())
         highseries = highseries + (" " * (11 - len(highseries))) # uses spaces and monotype font to get the text alignment correct \t doesnt work in matplotlib 
         lowseries = str(seriesscratch.min())
+        lowseries = lowseries + (" " * (10 - len(lowseries)))
         
-        season_best = season_best + '\n' + sl[:15] + "\t" + highgame + "\t" + lowgame + "\t" + highseries + "\t" + lowseries
+        season_best = season_best + '\n' + sl[:15] + "\t" + highgame + "\t" + lowgame + "\t" + highseries + "\t" + lowseries + "\t" + CurrentAverage
     
-    season_best = season_best.replace("\t", "    ")
+    season_best = season_best.replace("\t", " " * 3)
         
     for i, p in enumerate(plots):
         ax.append(fig.add_subplot(len(plots)+1, 1, i+1))
@@ -73,17 +77,38 @@ if __name__ == '__main__':
                 y_ss = df[col][df['Season_League'] == sl]
                 x_days = df['Days'][df['Season_League'] == sl]
                 
-                # labels are different for Game Comparison because it has 3 lines pre season league rather then just 1
-                if p != 'Game Comparison':
-                    lbl = sl
+                # customize the labels for a given plot
+                if p == 'Series: Scratch':
+                    if col == 'SS':
+                        lbl = 'Series'
+                    elif col == 'Avg_After':
+                        lbl = 'Series Average'
+                elif p == 'Game Comparison':
+                    lbl = col.replace('m', 'ame ').replace('g_Before', 'erage')
                 else:
-                    lbl = col + ' ' + sl
+                    lbl = sl
                 
-                ax[i].plot(x_days, y_ss, label=lbl, linestyle='-', linewidth=2.0, 
-                               marker='s', markersize=4, markeredgecolor='black')
+                # gets average series by multiplyting average  by 3
+                # plots using a dotted line and a red marker
+                if col == 'Avg_After' and p == 'Series: Scratch':
+                    y_ss = df[col][df['Season_League'] == sl] * 3
+                    
+                    ax[i].plot(x_days, y_ss, label=lbl, linestyle=':', linewidth=2.0, color='#FF0000', 
+                                   marker='s', markersize=4, markeredgecolor='black')
+                    
+                # if case is true creates the red dotted line for average
+                elif col == 'Avg_Before' and p == 'Game Comparison':
+                    ax[i].plot(x_days, y_ss, label=lbl, linestyle=':', linewidth=2.0, color='#FF0000', 
+                                   marker='s', markersize=4, markeredgecolor='black')
+                else:
+                    ax[i].plot(x_days, y_ss, label=lbl, linestyle='-', linewidth=2.0, 
+                                   marker='s', markersize=4, markeredgecolor='black')
+                    
+                    
+                # Avg_After
         
         # Add legend to subplot
-        ax[i].legend()       
+        ax[i].legend(fontsize=9)       
         
         # drop axis borders    
         ax[i].spines['right'].set_visible(False)

@@ -136,8 +136,8 @@ class Window(Frame):
         plottypes = ['Average: Total', 'Average: Per-Day', 'Series: Scratch', 'Series: Handicap', 'Game Comparison', 'Average: Delta']
         self.plottype_dbquery_columns = {'Average: Total': ['Days', 'Avg_After', 'Season_League'], 'Average: Per-Day': ['Days', 'Avg_Today', 'Season_League'], 'Series: Scratch': ['Days', 'SS', 'Season_League'], 
                                 'Series: Handicap': ['Days', 'HS', 'Season_League'], 'Game Comparison': ['Days', 'Gm1', 'Gm2', 'Gm3', 'Season_League'], 'Average: Delta': ['Days', 'Avg_Delta', 'Season_League']}
-        self.y_axis_columns = {'Average: Total': ['Avg_After'], 'Average: Per-Day': ['Avg_Today'], 'Series: Scratch': ['SS'], 
-                                'Series: Handicap': ['HS'], 'Game Comparison': ['Gm1', 'Gm2', 'Gm3'], 'Average: Delta': ['Avg_Delta']}
+        self.y_axis_columns = {'Average: Total': ['Avg_After'], 'Average: Per-Day': ['Avg_Today'], 'Series: Scratch': ['SS', 'Avg_After'], 
+                                'Series: Handicap': ['HS'], 'Game Comparison': ['Gm1', 'Gm2', 'Gm3', 'Avg_Before'], 'Average: Delta': ['Avg_Delta']}
         self.refresh_listbox_values(plottypes, plottype_lbox, self.plottypes_strvar)
         self.alternate_listbox_rowcolors(plottype_lbox, self.plottypes)
         
