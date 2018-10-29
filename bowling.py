@@ -136,8 +136,10 @@ class Window(Frame):
         plottypes = ['Average: Total', 'Average: Per-Day', 'Series: Scratch', 'Series: Handicap', 'Game Comparison', 'Average: Delta']
         self.plottype_dbquery_columns = {'Average: Total': ['Days', 'Avg_After', 'Season_League'], 'Average: Per-Day': ['Days', 'Avg_Today', 'Season_League'], 'Series: Scratch': ['Days', 'SS', 'Season_League'], 
                                 'Series: Handicap': ['Days', 'HS', 'Season_League'], 'Game Comparison': ['Days', 'Gm1', 'Gm2', 'Gm3', 'Season_League'], 'Average: Delta': ['Days', 'Avg_Delta', 'Season_League']}
+        
         self.y_axis_columns = {'Average: Total': ['Avg_After'], 'Average: Per-Day': ['Avg_Today'], 'Series: Scratch': ['SS', 'Avg_After'], 
-                                'Series: Handicap': ['HS'], 'Game Comparison': ['Gm1', 'Gm2', 'Gm3', 'Avg_Before'], 'Average: Delta': ['Avg_Delta']}
+                                'Series: Handicap': ['HS', 'Match_Points'], 'Game Comparison': ['Gm1', 'Gm2', 'Gm3', 'Avg_Before'], 'Average: Delta': ['Avg_Delta']}
+        
         self.refresh_listbox_values(plottypes, plottype_lbox, self.plottypes_strvar)
         self.alternate_listbox_rowcolors(plottype_lbox, self.plottypes)
         
@@ -188,7 +190,12 @@ class Window(Frame):
         Database_tab.add_command(label='Connect', command=functools.partial(self.connect_db, param=({'plottype_lbox': plottype_lbox, 
                                                                                                             'bowlers_lbox': bowlers_lbox,
                                                                                                             'seasonleague_lbox':seasonleague_lbox})))
-        Database_tab.add_command(label='Current', command=self.display_current_db) 
+        Database_tab.add_command(label='Current', command=self.display_current_db)
+        
+        #####
+        Database_tab.add_command(label='Load Match Points', command=self.load_excel)
+        #####
+         
         main_menu.add_cascade(label='Database', menu=Database_tab) # Add Database tab object to main_menu
         
         # Starting status message
@@ -511,6 +518,22 @@ class Window(Frame):
             self.statusmsg.set('Current Database Connection: {db}\n\n'.format(db=self.master.file))
         except AttributeError:
             self.statusmsg.set('No Database Connection Established\n\n')
+            
+    def load_excel(self):
+        
+        f = filedialog.askopenfilename(initialdir=os.path.join('T:\\', 'TC', 'Documents', 'BowlingLeagues') , 
+                                                            title = "Select Excel File with Match Point Data", filetypes=(('Excel Files', '*.xlsx'), ('Excel Macro Files', '*.xlsm'),))
+        
+        if f == None or f == '':
+            self.statusmsg.set('No Excel File Selected Action Aborted\n\n')
+            return None
+        
+        # Extracted data from excel file
+        print('hello')
+        self.bowling_db.loadexcelfile(f)
+        self.bowling_db.CommitDB()
+        print('good bye')
+        self.statusmsg.set('Excel File Loaded\n\n')
             
     
         

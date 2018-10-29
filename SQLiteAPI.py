@@ -13,7 +13,7 @@ class BowlingDB():
 		self.cur = self.conn.cursor()
 		if not db_exists: self.createtables()
 		
-	
+# Need to fix this adding in the match points columns	
 	def createtables(self):
 		self.conn.execute('''
 				CREATE TABLE bowling(
@@ -84,13 +84,42 @@ class BowlingDB():
 		df = pd.read_csv(csvfilepath)
 		df = self.clean_df(df, csvfilepath, Season_League)
 		
-		# Iterates through the df loading each into the db
+		# Get the table column headers
 		columns_headers = self.getColumns('bowling')
+		
+		# Remove match point columns
+		for i in ['MP_Gm1', 'MP_Gm2', 'MP_Gm3', 'MP_Series', 'Match_Points']:
+			while i in columns_headers:
+				columns_headers.remove(i)
+		
+		# Iterates through the df loading each into the db
 		for row in df.iterrows():
 			row_values = row[1][columns_headers].tolist()
 			self.UploadTableRow(table='bowling', columns_as_list=columns_headers, row_values_as_list=row_values)
+			
+	def loadexcelfile(self, excelfilepath):
+		
+		df = pd.read_excel(excelfilepath)
+		dfMatchPoints = self.clean_dfMatchPoints(df)
+		
+		# Iterates through the df loading each into the db
+		for row in dfMatchPoints.iterrows():
+			row_values = row[1][['Bowler_Date', 'MP_Gm1', 'MP_Gm2', 'MP_Gm3', 'MP_Series', 'Match_Points']].tolist()
+			self.UpdateRow_MatchPoint(row_values)
 		
 		
+	def clean_dfMatchPoints(self, df):
+		
+		# Correct date format from mm/dd/yyyy to yyyy-mm-dd
+		# Convert the time column to datetime dtype
+		df['Date_Formatted'] = pd.to_datetime(df['Date'], format="%m/%d/%Y")
+		df['Date'] = df['Date_Formatted'].dt.strftime("%Y-%m-%d")
+		
+		# Create the primary key which is Bowler_Date
+		df['Bowler_Date'] = df['Bowler'] + '_' + df['Date']
+		
+		return df[['Bowler_Date', 'MP_Gm1', 'MP_Gm2', 'MP_Gm3', 'MP_Series', 'Match_Points']].copy()
+	
 	def clean_df(self, df, csvfilepath, Season_League):
 		
 		df.rename(index=str, columns={"Avg<br />Before": "Avg_Before", "Avg<br />After": "Avg_After", "Date": "Date_Formatted",
@@ -118,6 +147,27 @@ class BowlingDB():
 		timedelta = row['Date_Formatted'] - startdate
 		return timedelta.days
 		
+	
+	def UpdateRow_MatchPoint(self, row_values_as_list):
+		Bowler_Date = row_values_as_list[0]
+		MP_Gm1 = row_values_as_list[1]
+		MP_Gm2 = row_values_as_list[2]
+		MP_Gm3 = row_values_as_list[3]
+		MP_Series = row_values_as_list[4]
+		Match_Points = row_values_as_list[5]
+		
+		
+		query_statement = """Update bowling 
+							SET MP_Gm1 = '{G1}', 
+								MP_Gm2 = '{G2}', 
+								MP_Gm3 = '{G3}', 
+								MP_Series = '{MPS}', 
+								Match_Points = '{MPT}'
+							WHERE Bowler_Date = '{BD}';""".format(G1=MP_Gm1, G2=MP_Gm2, G3=MP_Gm3, MPS=MP_Series, MPT=Match_Points, BD=Bowler_Date)
+							
+		query_statement = query_statement.replace("nan","NULL")
+		
+		self.cur.execute(query_statement)
 		
 	def UploadTableRow(self, table, columns_as_list, row_values_as_list):
 		# This corrects values that should be Null but in the string conversion are ''

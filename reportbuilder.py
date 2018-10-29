@@ -40,7 +40,7 @@ if __name__ == '__main__':
     ax = []
     
     # Build season bests string
-    season_best = 'Season - League\tHigh Game\tLow Game\tHigh Series\tLow Series\tAverage'
+    season_best = 'Season - League\tHigh Game\tLow Game\tHigh Series\tLow Series\tAverage\tMatch Pts'
     for sl in seasonleagues:
         # Determine high and low games & series for season league
         Gm1 = df['Gm1'][df['Season_League'] == sl]
@@ -48,20 +48,22 @@ if __name__ == '__main__':
         Gm3 = df['Gm3'][df['Season_League'] == sl]
         
         CurrentAverage = df['Avg_After'][df['Date'] == df['Date'].max()].tolist()
-        CurrentAverage = str(CurrentAverage[0])
+        CurrentAverage = str(CurrentAverage[0]) + (" " * (5 - len(CurrentAverage)))
         
         highgame = str(max([Gm1.max(), Gm2.max(), Gm3.max()]))
         highgame = highgame + (" " * (9 - len(highgame))) # uses spaces and monotype font to get the text alignment correct \t doesnt work in matplotlib 
         lowgame = str(min([Gm1.min(), Gm2.min(), Gm3.min()]))
         lowgame = lowgame + (" " * (8 - len(lowgame))) # uses spaces and monotype font to get the text alignment correct \t doesnt work in matplotlib 
-
+        
         seriesscratch = df['SS'][df['Season_League'] == sl]
         highseries = str(seriesscratch.max())
         highseries = highseries + (" " * (11 - len(highseries))) # uses spaces and monotype font to get the text alignment correct \t doesnt work in matplotlib 
-        lowseries = str(seriesscratch.min())
+        lowseries = str(seriesscratch.min()) 
         lowseries = lowseries + (" " * (10 - len(lowseries)))
         
-        season_best = season_best + '\n' + sl[:15] + "\t" + highgame + "\t" + lowgame + "\t" + highseries + "\t" + lowseries + "\t" + CurrentAverage
+        MatchPts = str(df['Match_Points'][df['Season_League'] == sl].sum())
+        
+        season_best = season_best + '\n' + sl[:15] + "\t" + highgame + "\t" + lowgame + "\t" + highseries + "\t" + lowseries + "\t" + CurrentAverage + "\t" + MatchPts
     
     season_best = season_best.replace("\t", " " * 3)
         
@@ -77,47 +79,85 @@ if __name__ == '__main__':
                 y_ss = df[col][df['Season_League'] == sl]
                 x_days = df['Days'][df['Season_League'] == sl]
                 
+                # each plot will have its own section to add a plot
+                # this will make it a bit more readable
                 # customize the labels for a given plot
-                if p == 'Series: Scratch':
-                    if col == 'SS':
-                        lbl = 'Series'
-                    elif col == 'Avg_After':
-                        lbl = 'Series Average'
-                elif p == 'Game Comparison':
-                    lbl = col.replace('m', 'ame ').replace('g_Before', 'erage')
+                if p == 'Series: Handicap':
+                    if col == 'HS':
+                        ax[i].plot(x_days, y_ss, label="Series Handicap", linestyle='-', linewidth=2.0, color='#ff5700',
+                                       marker='s', markersize=4, markeredgecolor='black')
+                    elif col == 'Match_Points':
+                        ax2 = ax[i].twinx()
+                        ax2.plot(x_days, y_ss, label="Match Points", linestyle='-', linewidth=2.0, color="#00ffff", 
+                                       marker='s', markersize=4, markeredgecolor='black')
+                        
+                        ax[i].set_ylabel('Series Handicap\n')
+                        ax2.set_ylabel('\nMatch Points')
+                        
+                        # Add legend to subplot
+                        ax2.legend(fontsize=9)       
+                        
+                        # drop axis borders    
+                        ax2.spines['right'].set_visible(False)
+                        ax2.spines['top'].set_visible(False)
+                        ax2.spines['left'].set_visible(False)
+                        ax2.spines['bottom'].set_visible(False)
+                         
+#                         # Turn off x-axis tick labels
+                        
+                        ax2.set_ylim([-0.25,4.25])
+                        ax2.set_yticklabels(['', '', '', 1, '', 2, '',3, '',4])
+                         
+                        # drop ticks
+                        ax2.tick_params(axis="both", which="both", bottom="off", top="off",    
+                                labelbottom="on", left="off", right="off", labelleft="off")
+                        
+                        # Drop legends
+                        ax[i].legend(fontsize=10, loc='center', bbox_to_anchor=(0.0,-0.05), frameon=True)
+                        ax2.legend(fontsize=10, loc='center', bbox_to_anchor=(1.0,-0.05), frameon=True)
+                        
+                    
                 else:
-                    lbl = sl
                 
-                # gets average series by multiplyting average  by 3
-                # plots using a dotted line and a red marker
-                if col == 'Avg_After' and p == 'Series: Scratch':
-                    y_ss = df[col][df['Season_League'] == sl] * 3
+                    if p == 'Series: Scratch':
+                        if col == 'SS':
+                            lbl = 'Series'
+                        elif col == 'Avg_After':
+                            lbl = 'Average - After'
+                    elif p == 'Game Comparison':
+                        lbl = col.replace('m', 'ame ').replace('g_Before', 'erage - Before')
+                        
+                        
+                    else:
+                        lbl = sl
                     
-                    ax[i].plot(x_days, y_ss, label=lbl, linestyle=':', linewidth=2.0, color='#FF0000', 
-                                   marker='s', markersize=4, markeredgecolor='black')
-                    
-                # if case is true creates the red dotted line for average
-                elif col == 'Avg_Before' and p == 'Game Comparison':
-                    ax[i].plot(x_days, y_ss, label=lbl, linestyle=':', linewidth=2.0, color='#FF0000', 
-                                   marker='s', markersize=4, markeredgecolor='black')
-                else:
-                    ax[i].plot(x_days, y_ss, label=lbl, linestyle='-', linewidth=2.0, 
-                                   marker='s', markersize=4, markeredgecolor='black')
-                    
-                    
-                # Avg_After
-        
-        # Add legend to subplot
-        ax[i].legend(fontsize=9)       
+                    # gets average series by multiplyting average  by 3
+                    # plots using a dotted line and a red marker
+                    if col == 'Avg_After' and p == 'Series: Scratch':
+                        y_ss = df[col][df['Season_League'] == sl] * 3
+                        
+                        ax[i].plot(x_days, y_ss, label=lbl, linestyle=':', linewidth=2.0, color='#FF0000', 
+                                       marker='s', markersize=4, markeredgecolor='black')
+                        
+                    # if case is true creates the red dotted line for average
+                    elif col == 'Avg_Before' and p == 'Game Comparison':
+                        ax[i].plot(x_days, y_ss, label=lbl, linestyle=':', linewidth=2.0, color='#FF0000', 
+                                       marker='s', markersize=4, markeredgecolor='black')
+                    else:
+                        ax[i].plot(x_days, y_ss, label=lbl, linestyle='-', linewidth=2.0, 
+                                       marker='s', markersize=4, markeredgecolor='black')
         
         # drop axis borders    
         ax[i].spines['right'].set_visible(False)
         ax[i].spines['top'].set_visible(False)
         ax[i].spines['left'].set_visible(False)
         ax[i].spines['bottom'].set_visible(False)
-         
+        
+        # Add legend to subplot
         # label y-axes & axes title
-        ax[i].set_ylabel('{l}\n'.format(l=p))
+        if p != 'Series: Handicap': 
+            ax[i].set_ylabel('{l}\n'.format(l=p))
+            ax[i].legend(fontsize=10)
          
         # Turn on y-axis grid
         ax[i].grid(b=True, axis='y', linestyle='--', linewidth=0.7, alpha=0.3)
@@ -138,7 +178,7 @@ if __name__ == '__main__':
     ax[len(plots)].plot([0,1] , [0,1], color='white')
     
     # Add season best text on plot
-    ax[len(plots)].text(-0.1, 0.8, season_best, fontsize=12, family='monospace')
+    ax[len(plots)].text(-0.12, 0.85, season_best, fontsize=11, family='monospace')
     
     ## Remove all graph like stuff from plot
     # drop axis borders    
