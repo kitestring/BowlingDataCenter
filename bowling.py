@@ -244,6 +244,9 @@ class Window(Frame):
     
     def load_data(self, bowlers_lbox, seasonleague_lbox, seasonleague_selections):
         
+        print('please work bitch')
+        raise ValueError('A very specific bad thing happened.')
+        
         # Checks if a single season league has been selected
         if seasonleague_selections == ['None'] or len(seasonleague_selections) > 1:
             self.statusmsg.set('Invalid selection: Must select a single season league to load data.\n\n')
@@ -548,6 +551,8 @@ class Window(Frame):
         
 
 if __name__ == '__main__':
+    
+    print('here is another test')
     
     # initialize working directory & json file, if doesn't exist then create it
     # JSON file contains db file path.  If not found the default path will be used
