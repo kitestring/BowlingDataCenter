@@ -201,3 +201,8 @@ class BowlingDB():
 		sql_statement = "SELECT * FROM Bowling wHERE Bowler = '{b}' AND (Season_League = '{s}') AND SS != '0' ORDER BY Season_League ASC;".format(b=bowler, s=sl)
 		
 		return pd.read_sql_query(sql_statement, self.conn)
+	
+	def manualDB_Corrections(self):
+		query_statement = "UPDATE bowling SET Avg_Delta = 0 WHERE Bowler_Date = 'ken-kite_2018-09-04' or Bowler_Date = 'timothy-schramm_2018-09-11';"
+		self.cur.execute(query_statement)
+		

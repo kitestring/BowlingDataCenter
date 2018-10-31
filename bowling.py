@@ -183,6 +183,7 @@ class Window(Frame):
         
         # Create DataBase tab object
         Database_tab = Menu(main_menu)
+        Load_tab = Menu(main_menu)
         
         # create tab commands for Database tab
         # Commands will be list in the order they are added from 1st is top
@@ -192,11 +193,17 @@ class Window(Frame):
                                                                                                             'seasonleague_lbox':seasonleague_lbox})))
         Database_tab.add_command(label='Current', command=self.display_current_db)
         
-        #####
-        Database_tab.add_command(label='Load Match Points', command=self.load_excel)
-        #####
-         
         main_menu.add_cascade(label='Database', menu=Database_tab) # Add Database tab object to main_menu
+        
+        # Create Load tab object
+        Load_tab = Menu(main_menu)
+        
+        # create tab commands for Load tab
+        Load_tab.add_command(label='Load Match Points', command=self.load_excel)
+        Load_tab.add_command(label='Manual DB Corrections', command=self.manualDB_Corrections)
+        
+        main_menu.add_cascade(label='Load', menu=Load_tab) # Add Load tab object to main_menu
+        
         
         # Starting status message
         self.statusmsg.set(self.message_builder('None', ['None'], ['None']))
@@ -529,13 +536,15 @@ class Window(Frame):
             return None
         
         # Extracted data from excel file
-        print('hello')
         self.bowling_db.loadexcelfile(f)
         self.bowling_db.CommitDB()
-        print('good bye')
         self.statusmsg.set('Excel File Loaded\n\n')
-            
+        
     
+    def manualDB_Corrections(self):
+        self.bowling_db.manualDB_Corrections()
+        self.bowling_db.CommitDB()
+        self.statusmsg.set('Manual Database Corrections Implemented\n\n')
         
 
 if __name__ == '__main__':
