@@ -551,23 +551,22 @@ class Window(Frame):
         
 
 if __name__ == '__main__':
-    
-    print('here is another test')
-    
+        
     # initialize working directory & json file, if doesn't exist then create it
     # JSON file contains db file path.  If not found the default path will be used
     utils_directory=os.path.join('C:\\', 'ProgramData', 'BowlingData')
     jsonfilepath = os.path.join(utils_directory, 'bowlinginstancedata.txt')
-    JSON_Tools = JSON_Tools()
+#     JSON_Tools = JSON_Tools()
     
     if os.path.isdir(utils_directory) == False:
         os.makedirs(utils_directory)
     
     if os.path.exists(jsonfilepath) == False:
         db_filepath = os.path.join(utils_directory, 'bowling.db') 
-        JSON_Tools.dump_Data_To_File(jsonfilepath, db_filepath = os.path.join(utils_directory, 'bowling.db'))
+        JSON_Tools().dump_Data_To_File(jsonfilepath, db_filepath = os.path.join(utils_directory, 'bowling.db'))
     else:
-        db_filepath = JSON_Tools.Load_Data(jsonfilepath)['db_filepath']
+#         db_filepath = JSON_Tools.Load_Data(jsonfilepath)['db_filepath']
+        db_filepath = JSON_Tools().Load_Data(jsonfilepath)['db_filepath']
     
     # Create GUI
     root = Tk()

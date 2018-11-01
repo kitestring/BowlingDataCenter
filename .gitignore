@@ -3,6 +3,11 @@
 .git/
 __pycache__/
 developmentalmaterials/
+bowling_v1.py
+jsonAPI_v1.py
+plotter_v1.py
+reportbuilder_v1.py
+SQLiteAPI_v1.py
 
 # Executables
 *.swf
