@@ -54,7 +54,7 @@ class Window(Frame):
         self.bowling_db = BowlingDB(self.master.file)
         
         self.master.protocol("WM_DELETE_WINDOW", self._delete_window)
-        self.master.title("Bowling Data Center")
+        self.master.title("Bowling Data Center v2")
                
         # Create and grid the outer content frame
         self.contentframe.grid(column=0, row=0, sticky=(N,W,E,S))
