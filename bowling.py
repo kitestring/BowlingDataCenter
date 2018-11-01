@@ -54,7 +54,7 @@ class Window(Frame):
         self.bowling_db = BowlingDB(self.master.file)
         
         self.master.protocol("WM_DELETE_WINDOW", self._delete_window)
-        self.master.title("Bowling Data Center")
+        self.master.title("Bowling Data Center v2")
                
         # Create and grid the outer content frame
         self.contentframe.grid(column=0, row=0, sticky=(N,W,E,S))
@@ -243,6 +243,9 @@ class Window(Frame):
                 lstbox.itemconfigure(i, background='#f0f0ff')
     
     def load_data(self, bowlers_lbox, seasonleague_lbox, seasonleague_selections):
+        
+        print('please work bitch')
+        raise ValueError('A very specific bad thing happened.')
         
         # Checks if a single season league has been selected
         if seasonleague_selections == ['None'] or len(seasonleague_selections) > 1:
@@ -548,21 +551,22 @@ class Window(Frame):
         
 
 if __name__ == '__main__':
-    
+        
     # initialize working directory & json file, if doesn't exist then create it
     # JSON file contains db file path.  If not found the default path will be used
     utils_directory=os.path.join('C:\\', 'ProgramData', 'BowlingData')
     jsonfilepath = os.path.join(utils_directory, 'bowlinginstancedata.txt')
-    JSON_Tools = JSON_Tools()
+#     JSON_Tools = JSON_Tools()
     
     if os.path.isdir(utils_directory) == False:
         os.makedirs(utils_directory)
     
     if os.path.exists(jsonfilepath) == False:
         db_filepath = os.path.join(utils_directory, 'bowling.db') 
-        JSON_Tools.dump_Data_To_File(jsonfilepath, db_filepath = os.path.join(utils_directory, 'bowling.db'))
+        JSON_Tools().dump_Data_To_File(jsonfilepath, db_filepath = os.path.join(utils_directory, 'bowling.db'))
     else:
-        db_filepath = JSON_Tools.Load_Data(jsonfilepath)['db_filepath']
+#         db_filepath = JSON_Tools.Load_Data(jsonfilepath)['db_filepath']
+        db_filepath = JSON_Tools().Load_Data(jsonfilepath)['db_filepath']
     
     # Create GUI
     root = Tk()
