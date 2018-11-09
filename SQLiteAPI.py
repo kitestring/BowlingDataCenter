@@ -19,7 +19,6 @@ class BowlingDB():
 				CREATE TABLE bowling(
 				Bowler_Date TEXT PRIMARY KEY,
 				Days INTEGER,
-				Week INTEGER,
 				Date TEXT,
 				Gm1 INTEGER,
 				Gm2 INTEGER,
@@ -27,12 +26,19 @@ class BowlingDB():
 				SS INTEGER,
 				HCP INTEGER,
 				HS INTEGER,
-				Avg_Before INTEGER,
-				Avg_After INTEGER,
+				Avg_Total INTEGER,
 				Avg_Today INTEGER,
 				Avg_Delta INTEGER,
 				Season_League TEXT,
-				Bowler TEXT)''')
+				Bowler TEXT,
+				MP_Gm1 INTEGER, 
+				MP_Gm2 INTEGER, 
+				MP_Gm3 INTEGER, 
+				MP_Series INTEGER, 
+				Match_Points INTEGER,
+				MIB INTEGER,
+				Rank INTEGER,
+				Team INTEGER)''')
 	
 	def validate_dbfilepath(self, filepath):
 		# checks if database exists
@@ -60,6 +66,7 @@ class BowlingDB():
 		
 	def load_DataFrame(self, df, table_name):
 		df.to_sql(table_name, self.conn, if_exists="append")
+		
 		
 	def load_Data(self, df, table_name):
 		#executemany - I couldn't for the life of me get executemany to work...?
@@ -184,6 +191,14 @@ class BowlingDB():
 	def getuniquevalues(self, colummn, table):
 		sql_statement = 'SELECT DISTINCT(%s) FROM %s;' % (colummn, table)
 		return pd.read_sql_query(sql_statement, self.conn)
+	
+	def getUniqueBowlerValuesWhenSeasonLeague(self, seasonleague_lst):
+		
+		sl = "' OR Season_League = '".join(seasonleague_lst)
+		sql_statement = "SELECT DISTINCT(Bowler) FROM Bowling wHERE Season_League = '{s}';".format(s=sl)
+		
+		return pd.read_sql_query(sql_statement, self.conn)
+		
 		
 	def previewplotquery(self, columns, bowler, seasonleagues):
 		
