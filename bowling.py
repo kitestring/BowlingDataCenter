@@ -8,6 +8,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import pandas as pd
 import calendar
 import datetime
+import numpy as np
 
 import plotter # @unresolvedimport
 from jsonAPI import JSON_Tools # @unresolvedimport
@@ -44,8 +45,10 @@ class Window(tk.Frame):
         self.primary_yaxis = []
         self.primary_yaxis_strvar = tk.StringVar(value=self.primary_yaxis)
         
-        self.secondary_yaxis = []
-        self.secondary_yaxis_strvar = tk.StringVar(value=self.secondary_yaxis)
+        self.speciality_plots = ['None', 'Cumulative Match Points', 'Game Comparison']
+        self.speciality_plots_method_dict = {'Cumulative Match Points': self.speciality_plot_CumulativeMatchPoints,
+                                             'Game Comparison': self.speciality_plot_GameComparison}
+        self.speciality_plots_strvar = tk.StringVar(value=self.speciality_plots)
         
         self.plots = []
         self.plots_strvar = tk.StringVar(value=self.plots)
@@ -102,10 +105,10 @@ class Window(tk.Frame):
         self.individual_radio = tk.Radiobutton(self.contentframe, text="Individual", padx=0, variable=self.bowler_selection_type_intvar, value=0, command=self.select_bowler_RdoBtn)
         self.team_radio = tk.Radiobutton(self.contentframe, text="Team", padx=0, variable=self.bowler_selection_type_intvar, value=1, command=self.select_bowler_RdoBtn)
         
-        ## Create secondary y-axis Widget Group
-        self.sec_yaxis_lbox = tk.Listbox(self.contentframe, listvariable=self.secondary_yaxis_strvar, height=4, width=25,
-                                 exportselection=tk.FALSE, selectmode=tk.EXTENDED, name="secondary_yaxis")
-        sec_yaxis_lbl = tk.Label(self.contentframe, text='Secondary y-axis', anchor=tk.W)
+        ## Create speciality_plots y-axis Widget Group
+        self.speciality_plots_lbox = tk.Listbox(self.contentframe, listvariable=self.speciality_plots_strvar, height=4, width=25,
+                                 exportselection=tk.FALSE, name="speciality_plots")
+        speciality_plots_lbl = tk.Label(self.contentframe, text='Speciality Plots', anchor=tk.W)
         
         ## Create Saved Reports queue Widget Group
         self.reports_lbox = tk.Listbox(self.contentframe, listvariable=self.reports_strvar, height=4, width=25,
@@ -117,7 +120,7 @@ class Window(tk.Frame):
         ## Final Buttons row Widget Group
         preview_btn = tk.Button(self.contentframe, text='Preview', command=self.preview_plot)
         buildreport_btn = tk.Button(self.contentframe, text='Build Report', command=self.temp)
-        export_btn = tk.Button(self.contentframe, text='Export csv', command=self.temp)
+        export_btn = tk.Button(self.contentframe, text='Export csv', command=self.export_csv)
         
         # Status message output
         status = tk.Label(self.contentframe, textvariable=self.statusmsg, text='Pack', anchor=tk.W)
@@ -143,8 +146,8 @@ class Window(tk.Frame):
         self.individual_radio.grid(column=3, row=3, sticky=(tk.S, tk.W))
         self.team_radio.grid(column=3, row=3, sticky=(tk.S, tk.E))
         
-        sec_yaxis_lbl.grid(column=3, row=4, sticky=(tk.S, tk.W))
-        self.sec_yaxis_lbox.grid(column=3, row=5, sticky=(tk.S, tk.E, tk.W))
+        speciality_plots_lbl.grid(column=3, row=4, sticky=(tk.S, tk.W))
+        self.speciality_plots_lbox.grid(column=3, row=5, sticky=(tk.S, tk.E, tk.W))
         
         reports_lbl.grid(column=3, row=6, sticky=(tk.S, tk.W))
         self.reports_lbox.grid(column=3, row=7, sticky=(tk.S, tk.E, tk.W))
@@ -182,11 +185,11 @@ class Window(tk.Frame):
         self.bowlers_lbox.configure(yscrollcommand=bowlers_sb.set)
         bowlers_sb.config(command=self.bowlers_lbox.yview)
         
-        # Secondary y-axis Scroll bar    
-        sec_yaxis_sb = tk.Scrollbar(self.contentframe)
-        sec_yaxis_sb.grid(column=4, row=5, ipady=9, sticky=(tk.S))
-        self.sec_yaxis_lbox.configure(yscrollcommand=sec_yaxis_sb.set)
-        sec_yaxis_sb.config(command=self.sec_yaxis_lbox.yview)
+        # Speciality plots y-axis Scroll bar    
+        speciality_plots_sb = tk.Scrollbar(self.contentframe)
+        speciality_plots_sb.grid(column=4, row=5, ipady=9, sticky=(tk.S))
+        self.speciality_plots_lbox.configure(yscrollcommand=speciality_plots_sb.set)
+        speciality_plots_sb.config(command=self.speciality_plots_lbox.yview)
         
         # Saved Reports Scroll bar    
         reports_sb = tk.Scrollbar(self.contentframe)
@@ -216,9 +219,8 @@ class Window(tk.Frame):
         Load_tab = tk.Menu(tab_menu)
         
         # create tab commands for Load tab
-        Load_tab.add_command(label='Set Dataset Date', command=self.set_load_date)
+        Load_tab.add_command(label='Define Dataset Date', command=self.set_load_date)
         Load_tab.add_command(label='Bowling Data', command=self.load_bowling_data)
-        Load_tab.add_command(label='Match Points', command=self.temp)
         
         tab_menu.add_cascade(label='Load', menu=Load_tab) # Add Load tab object to tab_menu
         
@@ -228,16 +230,17 @@ class Window(tk.Frame):
         self.pri_yaxis_lbox.bind('<<ListboxSelect>>', self.select_pri_yaxis_lbox)
         self.plots_lbox.bind('<<ListboxSelect>>', self.lboxtemp)
         self.bowlers_lbox.bind('<<ListboxSelect>>', self.select_bowler_lbox)
-        self.sec_yaxis_lbox.bind('<<ListboxSelect>>', self.select_sec_yaxis_lbox) 
+        self.speciality_plots_lbox.bind('<<ListboxSelect>>', self.select_speciality_plots_lbox) 
         self.reports_lbox.bind('<<ListboxSelect>>', self.lboxtemp)
         
         ## Initialize the list boxes, note the bowler list box
         # will not be initialized because it is dependent on the 
         # season league selection
         self.update_seasonleague_lbox()
-        self.update_yaxis_lboxes()
+        self.update_primary_yaxis_lbox()
         self.update_plots_lbox()
         self.update_reports_lbox()
+        self.update_speciality_plots()
         
         self.statusmsg.set("\n\n\n\n")
         
@@ -250,10 +253,10 @@ class Window(tk.Frame):
         else:
             bwl = 'Team: ' + ' - '.join(self.get_Bowler_Selections())
         pyx = 'Primary yaxis: ' + ' - '.join(self.get_Primary_yaxis_Selections())
-        syx = 'Secondary yaxis: ' + ' - '.join(self.get_Secondary_yaxis_Selections())
+#         syx = 'Secondary yaxis: ' + ' - '.join(self.get_Secondary_yaxis_Selections())
         dt = 'Dataset Date: ' + str(self.convertcalendarselection())
 
-        self.statusmsg.set('\n'.join([sl, bwl, pyx, syx, dt]))
+        self.statusmsg.set('\n'.join([sl, bwl, pyx, dt]))
     
     def select_seasonleague_lbox(self, e):
         self.update_bowlers_lbox()
@@ -266,7 +269,7 @@ class Window(tk.Frame):
     def select_pri_yaxis_lbox(self, e):
         self.standardstatusmessage()
         
-    def select_sec_yaxis_lbox(self, e):
+    def select_speciality_plots_lbox(self, e):
         self.standardstatusmessage()
         
     def select_bowler_RdoBtn(self):
@@ -339,7 +342,7 @@ class Window(tk.Frame):
             for i in range(0,len(self.bowlers),2):
                     self.bowlers_lbox.itemconfigure(i, background='#f0f0ff')
     
-    def update_yaxis_lboxes(self):
+    def update_primary_yaxis_lbox(self):
         # Query the db and get all the analytically plotable columns (for the y-axis)
         all_db_columns = self.bowling_db.getColumns('bowling')
         non_analytical_columns = ['Bowler_Date', 'Team', 'Days', 'Date', 'Season_League', 'Bowler']
@@ -350,25 +353,14 @@ class Window(tk.Frame):
         self.primary_yaxis = analytical_columns
         self.primary_yaxis_strvar.set(value=self.primary_yaxis)
         
-        
-        ## Update sec_yaxis values in the list boxes
-        # requires the ability to select None
-        
-        # This allows for the insertion of a list item at specified index 
-        insert_at = 0  # index at which to insert item, in this case "None"
-        sec_yaxis_analytical_columns = analytical_columns[:] # created copy of list analytical_columns as sec_yaxis_analytical_columns
-        sec_yaxis_analytical_columns[insert_at:insert_at] = ['None'] # insert "None" within sec_yaxis_analytical_columns at index = insert_at
-        
-        self.secondary_yaxis = sec_yaxis_analytical_columns
-        self.secondary_yaxis_strvar.set(value=self.secondary_yaxis)
-        
-        # set the row background colors to alternate for the sake of readability
-        for i in range(0,len(self.secondary_yaxis),2):
-                self.sec_yaxis_lbox.itemconfigure(i, background='#f0f0ff')
-                
         # set the row background colors to alternate for the sake of readability
         for i in range(0,len(self.primary_yaxis),2):
                 self.pri_yaxis_lbox.itemconfigure(i, background='#f0f0ff')
+                
+    def update_speciality_plots(self):
+        # set the row background colors to alternate for the sake of readability
+        for i in range(0,len(self.speciality_plots),2):
+                self.speciality_plots_lbox.itemconfigure(i, background='#f0f0ff')
             
     
     def update_plots_lbox(self):
@@ -409,15 +401,14 @@ class Window(tk.Frame):
         else:
             return ['None']
         
-    def get_Secondary_yaxis_Selections(self):
-        secondary_yaxis_selections = self.sec_yaxis_lbox.curselection()
+    def get_speciality_plots_Selections(self):
         
-        if len(secondary_yaxis_selections)!=0:
-            secondary_yaxis_idxs = [int(i) for i in secondary_yaxis_selections] #@unusedvariable
-            return [self.secondary_yaxis[i] for i in secondary_yaxis_idxs]
-        else:
-            return ['None']
-    
+        try:
+            speciality_plots_selections = self.speciality_plots_lbox.curselection()[0]
+            return self.speciality_plots[speciality_plots_selections]
+        except IndexError:
+            return 'None'
+        
     def database_new(self):
         self.statusmsg.set("Define New Database Connection\n\n\n\n")
         
@@ -485,7 +476,7 @@ class Window(tk.Frame):
             
             # refresh season league list box & referesh y-axis list boxes  
             self.update_seasonleague_lbox()
-            self.update_yaxis_lboxes()
+            self.update_primary_yaxis_lbox()
             
     def database_display_current_connection(self):
         try:
@@ -619,7 +610,6 @@ class Window(tk.Frame):
         LeagueSummary_df = pd.read_csv(csv_file_paths[1])
         
         
-        
         ### Combine dataframaes
         
         # Drop redundant column and rename duplicate columns & change Name to Bowler
@@ -641,15 +631,9 @@ class Window(tk.Frame):
         # Concat the 3 dataframes into one using an outerjoin based upon the index
         # which as been defined as the Bowler column
         bowling_df = pd.concat([BowlerList_df, LeagueSummary_df], axis=1, join='outer')
-        bowling_df.dropna(axis=0, how='any', inplace=True)
         
         if HasTeamPointsData:
             bowling_df = pd.concat([bowling_df, teampoints_df], axis=1, join='outer')
-        
-        
-        ## Clean combined df (bowling_df)
-        # Drop rows from bowlers who did not show up (no substitute)
-        bowling_df = bowling_df[bowling_df['SS'] != 0].copy()
         
         # Convert the Bowler column back to a column and no longer the index
         bowling_df.sort_values(by='Rank', inplace=True, ascending=True)
@@ -659,22 +643,8 @@ class Window(tk.Frame):
         # Create new columns
         bowling_df['Date'] = dataset_date
         bowling_df['Bowler_Date'] =  bowling_df['Bowler'] + "_"  + bowling_df['Date']
-        bowling_df['Avg_Day'] = ((bowling_df['Gm1'] + bowling_df['Gm3'] + bowling_df['Gm2']) / 3).astype('int64')
+        bowling_df['Avg_Day'] = bowling_df.apply(self.calcAvgDay, axis=1)
         bowling_df['Season_League'] = seasonleague_selections[0]
-        
-#         
-#         print(BowlerList_df[BowlerList_df['Team'] == 22].head(5))
-#         print('\n\n********************\n\n')
-#         print(LeagueSummary_df.head(5))
-#         print('\n\n********************\n\n')
-#         print(bowling_df[bowling_df['Team'] == 22].head(5))
-#         print(bowling_df.info())
-#         print('\n\n********************\n\n')
-#         print(bowling_df.info())
-#         print(bowling_df[['Bowler','MP_Gm1','MP_Gm2','MP_Gm3','MP_Series','Match_Points']].head(50))
-        
-        
-#         bowling_df.to_csv(os.path.join(self.utils_directory,'test.csv'), index=True)
         
         bowling_df.fillna("''", inplace=True) # These values will be converted to NULL prior to loading to SQL
         self.bowling_db.load_bowlingdata(bowling_df)
@@ -683,7 +653,13 @@ class Window(tk.Frame):
         self.bowling_db.CommitDB()
         
         self.statusmsg.set('Selected bowling files loaded.\n\n\n\n')
-        
+    
+    def calcAvgDay(self, row):
+        try:
+            avg = int((row['Gm1'] + row['Gm3'] + row['Gm2']) / 3)
+        except ValueError:
+            avg = np.nan
+        return avg   
         
     def rankbowlers(self, row, df):
         # Bowler must bowl in >= 40% of max games bowled to be ranked
@@ -727,36 +703,58 @@ class Window(tk.Frame):
         long_date = str(self.calendar_selection['month_selected']) + "/" + str(self.calendar_selection['day_selected']) + "/" + str(self.calendar_selection['year_selected'])
         return datetime.datetime.strptime(long_date, "%m/%d/%Y").strftime("%Y-%m-%d")
       
-    def preview_plot(self):
+    def export_csv(self):
         # check the list box selections
         # Verify that at least one is selected for season league, bowler, and primary yaxis
         season_leagues = self.get_SeasonLeague_Selections()
         bowlers = self.get_Bowler_Selections()
         individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
         primary_yaxis_fields = self.get_Primary_yaxis_Selections()
-        secondary_yaxis_fields = self.get_Secondary_yaxis_Selections()
-        
         
         if season_leagues == ['None'] or bowlers == ['None'] or primary_yaxis_fields == ['None']:
             self.statusmsg.set('Invalid selection: Must select at least a single season league, bowler, and primary y-axis field to create a plot.\n\n\n\n')
             return None
         
-        # query db for the selected data
+        temp_csv_file = self.file_save(dialogtitle='Export Selected Data to Text Format', ftype='csv', 
+                                      fdescription='Text: Comma Separated Values', 
+                                      defalut_db_path=self.utils_directory)
+
+        bowling_df = self.bowling_db.previewplotquery(primary_yaxis_fields, bowlers, individualbowlerselection, season_leagues)
         
+        bowling_df.to_csv(temp_csv_file, index=False)
+    
+    def preview_plot(self):
         
+        # check the list box selections
+        # Verify that at least one is selected for season league, bowler, and primary yaxis
+        season_leagues = self.get_SeasonLeague_Selections()
+        bowlers = self.get_Bowler_Selections()
+        individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
+        primary_yaxis_fields = self.get_Primary_yaxis_Selections()
+        sp = self.get_speciality_plots_Selections()
         
-        if secondary_yaxis_fields == ['None']:
-            bowling_df = self.bowling_db.previewplotquery(primary_yaxis_fields, bowlers, individualbowlerselection, season_leagues)
-            self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, primary_yaxis_fields, bowlers, individualbowlerselection, season_leagues)) 
-        else:
-            primary_yaxis_fields.extend(secondary_yaxis_fields) # Combine selections from both yaxis lboxes
-            bowling_df = self.bowling_db.previewplotquery(primary_yaxis_fields, bowlers, individualbowlerselection, season_leagues)
-            # pass resulting df to plotter
+#         if season_leagues == ['None'] or bowlers == ['None'] or primary_yaxis_fields == ['None']:
+        if sp != 'None' and season_leagues != ['None'] and bowlers != ['None']:
+            self.speciality_plots_method_dict[sp]()
+            return None
+        elif season_leagues == ['None'] or bowlers == ['None'] or primary_yaxis_fields == ['None']:
+            self.statusmsg.set('Invalid selection: Must select at least a single season league, bowler, and primary y-axis field to create a plot.\n\n\n\n')
+            return None
+
+        bowling_df = self.bowling_db.previewplotquery(primary_yaxis_fields, bowlers, individualbowlerselection, season_leagues)
+        self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, primary_yaxis_fields, bowlers, individualbowlerselection, season_leagues)) 
+
             
         print(bowling_df)
-        
         self.standardstatusmessage()
+    
+    
+    def speciality_plot_CumulativeMatchPoints(self):
+        print('build Cumulative Match Points plot')
         
+    def speciality_plot_GameComparison(self):
+        print('build Game Comparison plot')
+      
     
     def temp(self):
         print("Oh, hello there")
