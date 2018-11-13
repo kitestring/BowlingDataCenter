@@ -1,5 +1,6 @@
 import sqlite3
 import pandas as pd
+import datetime
 import time
 from datetime import date
 import os
@@ -18,7 +19,6 @@ class BowlingDB():
 		self.conn.execute('''
 				CREATE TABLE bowling(
 				Bowler_Date TEXT PRIMARY KEY,
-				Days INTEGER,
 				Date TEXT,
 				Gm1 INTEGER,
 				Gm2 INTEGER,
@@ -27,8 +27,9 @@ class BowlingDB():
 				HCP INTEGER,
 				HS INTEGER,
 				Avg_Total INTEGER,
-				Avg_Today INTEGER,
-				Avg_Delta INTEGER,
+				Avg_Before INTEGER,
+				Avg_Day INTEGER,
+				Day_Avg_Delta INTEGER,
 				Season_League TEXT,
 				Bowler TEXT,
 				MP_Gm1 INTEGER, 
@@ -36,9 +37,12 @@ class BowlingDB():
 				MP_Gm3 INTEGER, 
 				MP_Series INTEGER, 
 				Match_Points INTEGER,
-				MIB INTEGER,
+				Total_Avg_Delta INTEGER,
 				Rank INTEGER,
-				Team INTEGER)''')
+				Team INTEGER,
+				Position INTEGER,
+				Pins INTEGER,
+				Games INTEGER)''')
 	
 	def validate_dbfilepath(self, filepath):
 		# checks if database exists
@@ -64,127 +68,51 @@ class BowlingDB():
 	def CommitDB(self):
 		self.conn.commit()
 		
-	def load_DataFrame(self, df, table_name):
-		df.to_sql(table_name, self.conn, if_exists="append")
-		
-		
-	def load_Data(self, df, table_name):
-		#executemany - I couldn't for the life of me get executemany to work...?
-		# http://jpython.blogspot.com/2013/11/python-sqlite-example-executemany.html
-		data, columns = self.createListOfTuples(df, table_name)
-		
-		for row in data:
-			try:
-				self.conn.execute("INSERT INTO %s %s VALUES %s" % (table_name, columns, row))
-			except sqlite3.IntegrityError:
-				print("Record Overwritten\n\tTable: %s\n\tID: %s\n" % (table_name, row[0]))
-				self.conn.execute("DELETE FROM %s WHERE id = '%s'" % (table_name, row[0]))
-				self.conn.execute("INSERT INTO %s %s VALUES %s" % (table_name, columns, row))
-		
-	def clearDB(self):
-		
-		for key_table, value in self.schema.items():
-			self.conn.execute("DELETE FROM %s" % key_table)	
 	
-	def loadcsvfile(self, csvfilepath, Season_League):
+	def load_bowlingdata(self, bowling_df):
 
-		df = pd.read_csv(csvfilepath)
-		df = self.clean_df(df, csvfilepath, Season_League)
-		
-		# Get the table column headers
-		columns_headers = self.getColumns('bowling')
-		
-		# Remove match point columns
-		for i in ['MP_Gm1', 'MP_Gm2', 'MP_Gm3', 'MP_Series', 'Match_Points']:
-			while i in columns_headers:
-				columns_headers.remove(i)
+		# Get the column headers from the dataframe
+		columns_headers = bowling_df.columns.values.tolist()
 		
 		# Iterates through the df loading each into the db
-		for row in df.iterrows():
+		for row in bowling_df.iterrows():
 			row_values = row[1][columns_headers].tolist()
 			self.UploadTableRow(table='bowling', columns_as_list=columns_headers, row_values_as_list=row_values)
-			
-	def loadexcelfile(self, excelfilepath):
-		
-		df = pd.read_excel(excelfilepath)
-		dfMatchPoints = self.clean_dfMatchPoints(df)
-		
-		# Iterates through the df loading each into the db
-		for row in dfMatchPoints.iterrows():
-			row_values = row[1][['Bowler_Date', 'MP_Gm1', 'MP_Gm2', 'MP_Gm3', 'MP_Series', 'Match_Points']].tolist()
-			self.UpdateRow_MatchPoint(row_values)
 		
 		
-	def clean_dfMatchPoints(self, df):
+	def clean_dfMatchPoints(self, df, datasetdate):
 		
 		# Correct date format from mm/dd/yyyy to yyyy-mm-dd
 		# Convert the time column to datetime dtype
 		df['Date_Formatted'] = pd.to_datetime(df['Date'], format="%m/%d/%Y")
 		df['Date'] = df['Date_Formatted'].dt.strftime("%Y-%m-%d")
 		
-		# Create the primary key which is Bowler_Date
-		df['Bowler_Date'] = df['Bowler'] + '_' + df['Date']
+		# Slice df based upon datasetdate
+		df = df[df['Date'] == datasetdate].copy()
 		
-		return df[['Bowler_Date', 'MP_Gm1', 'MP_Gm2', 'MP_Gm3', 'MP_Series', 'Match_Points']].copy()
+		# Set the Bolwer column as the index
+		df.set_index('Bowler', inplace=True)
+		
+		return df[['MP_Gm1', 'MP_Gm2', 'MP_Gm3', 'MP_Series', 'Match_Points']].copy()
 	
-	def clean_df(self, df, csvfilepath, Season_League):
-		
-		df.rename(index=str, columns={"Avg<br />Before": "Avg_Before", "Avg<br />After": "Avg_After", "Date": "Date_Formatted",
-									"Todays<br />Avg": "Avg_Today", "+/-<br />Avg": "Avg_Delta"}, inplace=True)
-		# extracts bowler name from file name, example file name: ken-kite-history.csv
-		df['Bowler'] = ntpath.basename(csvfilepath).replace('-history','').replace('.csv','')
-		
-		# Correct date format from mm/dd/yyyy to yyyy-mm-dd
-		# Convert the time column to datetime dtype
-		df['Date_Formatted'] = pd.to_datetime(df['Date_Formatted'], format="%m/%d/%Y")
-		df['Date'] = df['Date_Formatted'].dt.strftime("%Y-%m-%d")
-		
-		# Create the primary key which is Bowler_Date
-		df['Bowler_Date'] = df['Bowler'] + '_' + df['Date']
-		
-		# Create a Days column which counts the number of days from the first date of that season_league
-		df['Days'] = df.apply(self.DayDelta, args=(df['Date_Formatted'].min(),), axis=1)
-		df.drop(['Date_Formatted'], axis=1, inplace=True)
-		
-		df['Season_League'] = Season_League
-		
-		return df
 	
 	def DayDelta(self, row, startdate):
-		timedelta = row['Date_Formatted'] - startdate
+		
+		timedelta = datetime.datetime.strptime(row['Date'], "%Y-%m-%d") - datetime.datetime.strptime(startdate, "%Y-%m-%d")
 		return timedelta.days
 		
-	
-	def UpdateRow_MatchPoint(self, row_values_as_list):
-		Bowler_Date = row_values_as_list[0]
-		MP_Gm1 = row_values_as_list[1]
-		MP_Gm2 = row_values_as_list[2]
-		MP_Gm3 = row_values_as_list[3]
-		MP_Series = row_values_as_list[4]
-		Match_Points = row_values_as_list[5]
-		
-		
-		query_statement = """Update bowling 
-							SET MP_Gm1 = '{G1}', 
-								MP_Gm2 = '{G2}', 
-								MP_Gm3 = '{G3}', 
-								MP_Series = '{MPS}', 
-								Match_Points = '{MPT}'
-							WHERE Bowler_Date = '{BD}';""".format(G1=MP_Gm1, G2=MP_Gm2, G3=MP_Gm3, MPS=MP_Series, MPT=Match_Points, BD=Bowler_Date)
-							
-		query_statement = query_statement.replace("nan","NULL")
-		
-		self.cur.execute(query_statement)
 		
 	def UploadTableRow(self, table, columns_as_list, row_values_as_list):
-		# This corrects values that should be Null but in the string conversion are ''
+		# Build query statement
 		query_statement = "INSERT OR REPLACE INTO %s%s VALUES %s;" % (table, tuple(columns_as_list), tuple(row_values_as_list))
-# 		query_statement = query_statement.replace("''","NULL")
+		
+		# This corrects values that should be Null but in the string conversion are ''
+		query_statement = query_statement.replace("''","NULL")
 		
 		# Uncomment to print the query, example query:
 		# INSERT OR REPLACE INTO bowling('Bowler_Date', 'Days', 'Week', 'Date', 'Gm1', 'Gm2', 'Gm3', 'SS', 'HCP', 'Avg_Before', 'Avg_After', 
 			# 'Avg_Today', 'Avg_Delta', 'Season_League', 'Bowler') VALUES ('ken-kite_2018-09-04', 0, 1, '2018-09-04', 134, 124, 142, 400, 93, 185, 133, 133, -52, '2018-19 Couples', 'ken-kite');
-		# print(query_statement)
+# 		print(query_statement)
 		
 		self.cur.execute(query_statement)
 		
@@ -198,16 +126,46 @@ class BowlingDB():
 		sql_statement = "SELECT DISTINCT(Bowler) FROM Bowling wHERE Season_League = '{s}';".format(s=sl)
 		
 		return pd.read_sql_query(sql_statement, self.conn)
+	
+	def getUniqueTeams_WhenSeasonLeague(self, seasonleague_lst):
 		
-		
-	def previewplotquery(self, columns, bowler, seasonleagues):
-		
-		# Build Query
-		columns_comma_seperated = ', '.join(columns)
-		sl = "' OR Season_League = '".join(seasonleagues)
-		sql_statement = "SELECT {c} FROM Bowling wHERE Bowler = '{b}' AND (Season_League = '{s}') AND SS != '0' ORDER BY Season_League ASC;".format(c=columns_comma_seperated, b=bowler, s=sl)
+		sl = "' OR Season_League = '".join(seasonleague_lst)
+		sql_statement = "SELECT DISTINCT(Team) FROM Bowling wHERE Season_League = '{s}';".format(s=sl)
 		
 		return pd.read_sql_query(sql_statement, self.conn)
+		
+		
+	def previewplotquery(self, columns, bowler, isIndividualBowlerSelection, seasonleagues):
+		
+		columns_comma_seperated = ', '.join(columns)
+		sl = "' OR Season_League = '".join(seasonleagues)
+		
+		# Build Statement Query
+		if isIndividualBowlerSelection:
+			bwl = "' OR Bowler = '".join(bowler)
+			sql_statement = """SELECT Date, Season_league, Team, Bowler, {c} FROM Bowling wHERE (Bowler = '{b}') 
+				AND (Season_League = '{s}') AND SS != '0' ORDER BY Season_League, Bowler, Date ASC;""".format(c=columns_comma_seperated, b=bwl, s=sl)
+		else:
+			bwl = "' OR Team = '".join(bowler)
+			sql_statement = """SELECT Date, Season_league, Team, Bowler, {c} FROM Bowling wHERE (Team = '{b}') 
+				AND (Season_League = '{s}') AND SS != '0' ORDER BY Season_League, Bowler, Date ASC;""".format(c=columns_comma_seperated, b=bwl, s=sl)
+		
+		df = pd.read_sql_query(sql_statement, self.conn)
+		
+		# Calculate the number of days for each row relative to the 
+		# first bowling date of that season league
+		season_league_sliced_df = []
+		for i, sl in enumerate(seasonleagues):
+			season_league_sliced_df.append(df[df['Season_League'] == sl].copy()) # slice df for current season league
+			sql_statement = """SELECT MIN(Date) From Bowling Where Season_League = '{s}';""".format(s=sl) # Get starting date for season league
+			result = pd.read_sql_query(sql_statement, self.conn)
+			startdate = result['MIN(Date)'].tolist()[0]
+			season_league_sliced_df[i]['Days'] = season_league_sliced_df[i].apply(self.DayDelta, args=(startdate,), axis=1) # Apply number of days since season league start date
+		
+		result = pd.concat(season_league_sliced_df) # recombine sliced dataframes
+		result['Date'] = pd.to_datetime(result['Date'], format="%Y-%m-%d")	
+		
+		return result
 	
 	def plotreportquery(self, bowler, seasonleagues):
 		
