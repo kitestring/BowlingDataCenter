@@ -133,28 +133,13 @@ class BowlingDB():
 		sql_statement = "SELECT DISTINCT(Team) FROM Bowling wHERE Season_League = '{s}';".format(s=sl)
 		
 		return pd.read_sql_query(sql_statement, self.conn)
-		
-		
-	def previewplotquery(self, columns, bowler, isIndividualBowlerSelection, seasonleagues):
-		
-		columns_comma_seperated = ', '.join(columns)
-		sl = "' OR Season_League = '".join(seasonleagues)
-		
-		# Build Statement Query
-		if isIndividualBowlerSelection:
-			bwl = "' OR Bowler = '".join(bowler)
-			sql_statement = """SELECT Date, Season_league, Team, Bowler, {c} FROM Bowling wHERE (Bowler = '{b}') 
-				AND (Season_League = '{s}') AND SS != '0' ORDER BY Season_League, Bowler, Date ASC;""".format(c=columns_comma_seperated, b=bwl, s=sl)
-		else:
-			bwl = "' OR Team = '".join(bowler)
-			sql_statement = """SELECT Date, Season_league, Team, Bowler, {c} FROM Bowling wHERE (Team = '{b}') 
-				AND (Season_League = '{s}') AND SS != '0' ORDER BY Season_League, Bowler, Date ASC;""".format(c=columns_comma_seperated, b=bwl, s=sl)
-		
-		df = pd.read_sql_query(sql_statement, self.conn)
-		
+	
+	def getDaysSeries(self, df):
 		# Calculate the number of days for each row relative to the 
 		# first bowling date of that season league
+		seasonleagues = df['Season_League'].unique().tolist()
 		season_league_sliced_df = []
+		
 		for i, sl in enumerate(seasonleagues):
 			season_league_sliced_df.append(df[df['Season_League'] == sl].copy()) # slice df for current season league
 			sql_statement = """SELECT MIN(Date) From Bowling Where Season_League = '{s}';""".format(s=sl) # Get starting date for season league
@@ -162,10 +147,235 @@ class BowlingDB():
 			startdate = result['MIN(Date)'].tolist()[0]
 			season_league_sliced_df[i]['Days'] = season_league_sliced_df[i].apply(self.DayDelta, args=(startdate,), axis=1) # Apply number of days since season league start date
 		
-		result = pd.concat(season_league_sliced_df) # recombine sliced dataframes
-		result['Date'] = pd.to_datetime(result['Date'], format="%Y-%m-%d")	
+		df = pd.concat(season_league_sliced_df) # recombine sliced dataframes
 		
-		return result
+		return df['Days']
+	
+	def getCumulativeMatchPointsSeries(self, df):
+		# Add series with the cumulative summation of the match points 
+		# Do this for each bowler & each season league.
+		seasonleagues = df['Season_League'].unique().tolist()
+		bowlers = df['Bowler'].unique().tolist()
+		sliced_df = []
+		df_index = 0
+		
+		# Slices dataframe by season league and by bowler
+		# Then runs cumsum() on the match_points column
+		# Finally each sliced DF is recombined
+		# This ensures the cumsum() is calculated only on the data for a 
+		# specified bowler and season league and does not inadvertantly combine
+		# the summation across groups.
+		for sl in seasonleagues:
+			for b in bowlers:
+				sliced_df.append(df[(df['Season_League'] == sl) & (df['Bowler'] == b)].copy())
+				sliced_df[df_index]['Match_Points'] = sliced_df[df_index]['Match_Points'].replace('NULL', 0)
+				sliced_df[df_index]['Cumulative_Match_Points'] = sliced_df[df_index]['Match_Points'].cumsum()
+				df_index += 1
+				
+		result = pd.concat(sliced_df) # recombine sliced dataframes
+		
+		return result['Cumulative_Match_Points']
+		
+	def previewplot_query(self, columns, bowler, isIndividualBowlerSelection, seasonleagues):
+		
+		columns_comma_seperated = ', '.join(columns)
+		sl = "' OR Season_League = '".join(seasonleagues)
+		
+		# Build Statement Query
+		if isIndividualBowlerSelection:
+			bwl = "' OR Bowler = '".join(bowler)
+			sql_statement = """
+			SELECT 
+				Date, 
+				Season_league, 
+				Team, 
+				Bowler, 
+				{c} 
+			FROM Bowling 
+			wHERE 
+				(Bowler = '{b}') AND 
+				(Season_League = '{s}') AND 
+				SS != 0 AND
+				Position < 6
+			ORDER BY 
+				Season_League, 
+				Bowler, 
+				Date ASC;""".format(c=columns_comma_seperated, b=bwl, s=sl)
+		else:
+			bwl = "' OR Team = '".join(bowler)
+			sql_statement = """
+			SELECT 
+				Date, 
+				Season_league, 
+				Team, 
+				Bowler, 
+				{c} 
+			FROM Bowling 
+			wHERE 
+				(Team = '{b}') AND 
+				(Season_League = '{s}') AND 
+				SS != 0 AND
+				Position < 6 
+			ORDER BY 
+				Season_League, 
+				Bowler, 
+				Date ASC;""".format(c=columns_comma_seperated, b=bwl, s=sl)
+		
+		df = pd.read_sql_query(sql_statement, self.conn)
+		
+		# Create Days Columns
+		df['Days'] = self.getDaysSeries(df.copy())
+		
+		# Change 'Date' column as dtype from an object (Text) to datetime
+		df['Date'] = pd.to_datetime(df['Date'], format="%Y-%m-%d")	
+		
+		return df
+	
+	def csvexport_query(self, columns, bowler, isIndividualBowlerSelection, seasonleagues):
+		
+		columns_comma_seperated = ', '.join(columns)
+		sl = "' OR Season_League = '".join(seasonleagues)
+		
+		# Build Statement Query
+		if isIndividualBowlerSelection:
+			bwl = "' OR Bowler = '".join(bowler)
+			sql_statement = """
+			SELECT 
+				Date, 
+				Season_league, 
+				Team, 
+				Bowler, 
+				{c} 
+			FROM Bowling 
+			wHERE 
+				(Bowler = '{b}') AND 
+				(Season_League = '{s}')
+			ORDER BY 
+				Season_League, 
+				Bowler, 
+				Date ASC;""".format(c=columns_comma_seperated, b=bwl, s=sl)
+		else:
+			bwl = "' OR Team = '".join(bowler)
+			sql_statement = """
+			SELECT 
+				Date, 
+				Season_league, 
+				Team, 
+				Bowler, 
+				{c} 
+			FROM Bowling 
+			wHERE 
+				(Team = '{b}') AND 
+				(Season_League = '{s}') 
+			ORDER BY 
+				Season_League, 
+				Bowler, 
+				Date ASC;""".format(c=columns_comma_seperated, b=bwl, s=sl)
+		
+		df = pd.read_sql_query(sql_statement, self.conn)
+		
+		# Create Days & Cumulative_Match_Points Columns
+		df['Days'] = self.getDaysSeries(df.copy())
+		df['Cumulative_Match_Points'] = self.getCumulativeMatchPointsSeries(df.copy())
+		
+		# Change 'Date' column as dtype from an object (Text) to datetime
+		df['Date'] = pd.to_datetime(df['Date'], format="%Y-%m-%d")	
+		
+		return df
+	
+	def matchPointsCumSum_query(self, bowler, isIndividualBowlerSelection, seasonleagues):
+		
+		sl = "' OR Season_League = '".join(seasonleagues)
+		
+		# Build Statement Query
+		if isIndividualBowlerSelection:
+			bwl = "' OR Bowler = '".join(bowler)
+			sql_statement = """
+			SELECT 
+				Date, 
+				Season_league, 
+				Team, 
+				Bowler, 
+				Match_Points 
+			FROM Bowling 
+			wHERE 
+				(Bowler = '{b}') AND 
+				(Season_League = '{s}') AND
+				Position < 6
+			ORDER BY 
+				Season_League, 
+				Bowler, 
+				Date ASC;""".format(b=bwl, s=sl)
+		else:
+			bwl = "' OR Team = '".join(bowler)
+			sql_statement = """
+			SELECT 
+				Date, 
+				Season_league, 
+				Team, 
+				Bowler, 
+				Match_Points 
+			FROM Bowling 
+			wHERE 
+				(Team = '{b}') AND 
+				(Season_League = '{s}') AND
+				Position < 6
+			ORDER BY 
+				Season_League, 
+				Bowler, 
+				Date ASC;""".format(b=bwl, s=sl)
+		
+		df = pd.read_sql_query(sql_statement, self.conn)
+		
+		# Create Days & Cumulative_Match_Points Columns
+		df['Days'] = self.getDaysSeries(df.copy())
+		df['Cumulative_Match_Points'] = self.getCumulativeMatchPointsSeries(df.copy())
+		
+		# Change 'Date' column as dtype from an object (Text) to datetime 
+		df['Date'] = pd.to_datetime(df['Date'], format="%Y-%m-%d")	
+		
+		return df
+	
+	def teamHandicap_query(self, bowler, seasonleagues):
+		
+		sl = "' OR Season_League = '".join(seasonleagues)
+		
+		# Build Statement Query
+		bwl = "' OR Team = '".join(bowler)
+		sql_statement = """
+		SELECT 
+			Season_League,
+			Date,  
+			Team, 
+			SUM(
+				CASE
+					WHEN HS = 0
+					THEN Gm1 + Gm2 + Gm3 + (HCP * 3)
+					ELSE HS
+				END) as Team_Handicap
+		FROM Bowling 
+		wHERE 
+			(Team = '{b}') AND 
+			(Season_League = '{s}')	AND 
+			Position < 6
+		GROUP BY
+			Season_League, 
+			Team, 
+			Date 
+		ORDER BY
+			Season_League, 
+			Team, 
+			Date ASC;""".format(b=bwl, s=sl)
+		
+		df = pd.read_sql_query(sql_statement, self.conn)
+		
+		# Create Days Column
+		df['Days'] = self.getDaysSeries(df.copy())
+		
+		# Change 'Date' column as dtype from an object (Text) to datetime 
+		df['Date'] = pd.to_datetime(df['Date'], format="%Y-%m-%d")	
+		
+		return df
 	
 	def plotreportquery(self, bowler, seasonleagues):
 		

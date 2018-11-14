@@ -67,6 +67,59 @@ def starting_plot():
 
     return fig
 
+def plot_TeamHandycapTotal(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues):
+    # Generate plot labels/titles
+    plot_title, plotlabels_lst = plotlabels(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues)
+    plot = 0
+    
+    ## Create figure, add Sub-plot, and set colors
+    fig = plt.figure(figsize=(default_fig_size), dpi=default_fig_dpi)
+    ax1 = fig.add_subplot(1, 1, 1)
+    ax1.set_prop_cycle('color',plt.cm.Dark2(np.linspace(0,1,9))) #@UndefinedVariable
+    
+    for b in bowlers:
+        
+        for sl in season_leagues:
+            
+            for column in primary_yaxis:
+                # To plot season leagues of different years use 'Days' on the x-axis rather than 'Date'
+                df = bowling_df[(bowling_df['Bowler'] == b) & (bowling_df['Season_League'] == sl)].copy()
+                df.sort_values(by=['Date'], inplace=True)
+                xaxis = df['Date']
+                yaxis = df[column]
+                
+                ax1.plot(xaxis, yaxis, label=plotlabels_lst[plot], linestyle='-', linewidth=2.0,
+                                   marker='s', markersize=4, markeredgecolor='black')
+                plot+=1
+                
+    # drop axis borders    
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['left'].set_visible(False)
+    ax1.spines['bottom'].set_visible(False)
+    
+    # label y-axes
+#     a1[i].set_ylabel('Pins')
+    
+    # Turn off x axis tick labels
+    ax1.set_xticklabels([])
+    
+    # drop ticks
+    ax1.tick_params(axis="both", which="both", bottom="off", top="off",    
+            labelbottom="on", left="off", right="off", labelleft="on")
+    
+    # Turn on y-axis grid
+    ax1.grid(b=True, axis='y', linestyle='--', linewidth=0.7, alpha=0.8)
+    
+    # Turn on legend
+    if plotlabels_lst != ['None']:
+        ax1.legend(fontsize=8, loc='center', bbox_to_anchor=(-0.03,0.98), frameon=True)
+    
+    # Title for plt    
+    plt.suptitle(plot_title, fontsize=16)
+    
+    return fig
+
 def custom_plot_primaryaxisonly(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues):
     # Generate plot labels/titles
     plot_title, plotlabels_lst = plotlabels(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues)
@@ -197,8 +250,10 @@ def plotlabels(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
         
     plot_title = ' - '.join(temp_title_list)
     
-    print(plot_title)
-    print(plotlabels_lst)
+    
+    # Remove underscores to make labels/title more aesthetically pleasing
+    plot_title = plot_title.replace('_', " ")
+    plotlabels_lst = [i.replace('_', " ") for i in plotlabels_lst]
     
     return plot_title, plotlabels_lst
                 

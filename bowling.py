@@ -45,9 +45,10 @@ class Window(tk.Frame):
         self.primary_yaxis = []
         self.primary_yaxis_strvar = tk.StringVar(value=self.primary_yaxis)
         
-        self.speciality_plots = ['None', 'Cumulative Match Points', 'Game Comparison']
+        self.speciality_plots = ['None', 'Cumulative Match Points', 'Game Comparison', 'Team Handicap Total']
         self.speciality_plots_method_dict = {'Cumulative Match Points': self.speciality_plot_CumulativeMatchPoints,
-                                             'Game Comparison': self.speciality_plot_GameComparison}
+                                             'Game Comparison': self.speciality_plot_GameComparison,
+                                             'Team Handicap Total': self.speciality_plot_TeamHandycapTotal}
         self.speciality_plots_strvar = tk.StringVar(value=self.speciality_plots)
         
         self.plots = []
@@ -323,10 +324,17 @@ class Window(tk.Frame):
                 new_bowlers = []
                 teams = self.bowling_db.getUniqueTeams_WhenSeasonLeague(seasonleagues)['Team'].tolist()
                 for t in teams:
-                    if t < 10:
-                        new_bowlers.append('Team No. 0' + str(t))
-                    else:
-                        new_bowlers.append('Team No. ' + str(t))
+                    # Verify that each item is an int
+                    # Note, the query above will have some 'NULL' values and
+                    # substitute bowlers will be on team 0 which I'm not including 
+                    # in the list of selectable bowlers.
+                    if isinstance(t, int):
+                        # This forces each item to have the same number of characters 
+                        # and thus will sort nicely
+                        if t < 10 and t > 0:
+                            new_bowlers.append('Team No. 0' + str(t))
+                        elif t > 9:
+                            new_bowlers.append('Team No. ' + str(t))
             
             # new_bowlers must be a list and not a string
             # if a single values is returned it will be a string and not a list
@@ -656,10 +664,9 @@ class Window(tk.Frame):
     
     def calcAvgDay(self, row):
         try:
-            avg = int((row['Gm1'] + row['Gm3'] + row['Gm2']) / 3)
+            return int((row['Gm1'] + row['Gm3'] + row['Gm2']) / 3)
         except ValueError:
-            avg = np.nan
-        return avg   
+            return np.nan
         
     def rankbowlers(self, row, df):
         # Bowler must bowl in >= 40% of max games bowled to be ranked
@@ -719,42 +726,87 @@ class Window(tk.Frame):
                                       fdescription='Text: Comma Separated Values', 
                                       defalut_db_path=self.utils_directory)
 
-        bowling_df = self.bowling_db.previewplotquery(primary_yaxis_fields, bowlers, individualbowlerselection, season_leagues)
+        bowling_df = self.bowling_db.csvexport_query(primary_yaxis_fields, bowlers, individualbowlerselection, season_leagues)
         
         bowling_df.to_csv(temp_csv_file, index=False)
     
     def preview_plot(self):
         
-        # check the list box selections
-        # Verify that at least one is selected for season league, bowler, and primary yaxis
+        # Get all the user input values
         season_leagues = self.get_SeasonLeague_Selections()
         bowlers = self.get_Bowler_Selections()
         individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
         primary_yaxis_fields = self.get_Primary_yaxis_Selections()
         sp = self.get_speciality_plots_Selections()
         
-#         if season_leagues == ['None'] or bowlers == ['None'] or primary_yaxis_fields == ['None']:
+        # check the list box selections and
+        # Verify that at least one is selected for season league, bowler, and primary yaxis
+        # Also, check if a speciality plot has been selected
+        
         if sp != 'None' and season_leagues != ['None'] and bowlers != ['None']:
             self.speciality_plots_method_dict[sp]()
             return None
         elif season_leagues == ['None'] or bowlers == ['None'] or primary_yaxis_fields == ['None']:
             self.statusmsg.set('Invalid selection: Must select at least a single season league, bowler, and primary y-axis field to create a plot.\n\n\n\n')
             return None
-
-        bowling_df = self.bowling_db.previewplotquery(primary_yaxis_fields, bowlers, individualbowlerselection, season_leagues)
+        
+        # Query DB based upon the user selections, create plot, then update canvas with new plot
+        bowling_df = self.bowling_db.previewplot_query(primary_yaxis_fields, bowlers, individualbowlerselection, season_leagues)
         self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, primary_yaxis_fields, bowlers, individualbowlerselection, season_leagues)) 
 
-            
         print(bowling_df)
         self.standardstatusmessage()
     
     
     def speciality_plot_CumulativeMatchPoints(self):
-        print('build Cumulative Match Points plot')
+        
+        # Get the relevant user input values
+        season_leagues = self.get_SeasonLeague_Selections()
+        bowlers = self.get_Bowler_Selections()
+        individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
+        
+        # Query DB based upon the user selections, create plot, then update canvas with new plot
+        bowling_df = self.bowling_db.matchPointsCumSum_query(bowlers, individualbowlerselection, season_leagues)
+        print(bowling_df)
+        self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, ['Cumulative_Match_Points'], bowlers, individualbowlerselection, season_leagues))
         
     def speciality_plot_GameComparison(self):
         print('build Game Comparison plot')
-      
+        
+    def speciality_plot_TeamHandycapTotal(self):
+        
+        # Get the relevant user input values
+        season_leagues = self.get_SeasonLeague_Selections()
+        bowlers = self.get_Bowler_Selections()
+        individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
+        
+        # Verify that on the bowler list box that a team(s) selection has been
+        # made not an individual bowler(s) selection
+        if individualbowlerselection == True:
+            self.statusmsg.set('Invalid selection: Must make a team selection and not an individual bowler selection.\n\n\n\n')
+            return None
+        
+        # Verify that only a single season league has been selected
+
+        # Query DB based upon the user selections, create plot, then update canvas with new plot
+        bowling_df = self.bowling_db.teamHandicap_query(bowlers, season_leagues)
+        
+        # Changing this column name makes it cooperate with plot_TeamHandycapTotal()
+        bowling_df['Bowler'] = bowling_df.apply(self.false_bowler_column_for_TeamHandycapTotal, axis=1)
+        
+        # If team 22 is included, remove week 1 because we only had 3 of 5 bowlers
+        if '22' in bowlers:
+            bowling_df = bowling_df[bowling_df['Days'] != 0]
+        
+        self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, ['Team_Handicap'], bowlers, individualbowlerselection, season_leagues))
+        print(bowling_df)
+    
+    def false_bowler_column_for_TeamHandycapTotal(self, row):
+        
+        if row['Team'] < 10:
+            return 'Team 0' + str(row['Team'])
+        else:
+            return 'Team ' + str(row['Team'])
     
     def temp(self):
         print("Oh, hello there")
