@@ -336,6 +336,65 @@ class BowlingDB():
 		
 		return df
 	
+	def GameComparison_query(self, bowler, isIndividualBowlerSelection, seasonleagues):
+		
+		sl = "' OR Season_League = '".join(seasonleagues)
+		
+		# Build Statement Query
+		if isIndividualBowlerSelection:
+			bwl = "' OR Bowler = '".join(bowler)
+			sql_statement = """
+			SELECT 
+				Date, 
+				Season_league, 
+				Team, 
+				Bowler, 
+				Gm1,
+				Gm2,
+				Gm3,
+				Avg_Before
+			FROM Bowling 
+			wHERE 
+				(Bowler = '{b}') AND 
+				(Season_League = '{s}') AND
+				Position < 6
+			ORDER BY 
+				Season_League, 
+				Bowler, 
+				Date ASC;""".format(b=bwl, s=sl)
+		else:
+			bwl = "' OR Team = '".join(bowler)
+			sql_statement = """
+			SELECT 
+				Date, 
+				Season_league, 
+				Team, 
+				Bowler, 
+				Bowler, 
+				Gm1,
+				Gm2,
+				Gm3,
+				Avg_Before 
+			FROM Bowling 
+			wHERE 
+				(Team = '{b}') AND 
+				(Season_League = '{s}') AND
+				Position < 6
+			ORDER BY 
+				Season_League, 
+				Bowler, 
+				Date ASC;""".format(b=bwl, s=sl)
+		
+		df = pd.read_sql_query(sql_statement, self.conn)
+		
+		# Create Days & Cumulative_Match_Points Columns
+		df['Days'] = self.getDaysSeries(df.copy())
+		
+		# Change 'Date' column as dtype from an object (Text) to datetime 
+		df['Date'] = pd.to_datetime(df['Date'], format="%Y-%m-%d")	
+		
+		return df
+	
 	def teamHandicap_query(self, bowler, seasonleagues):
 		
 		sl = "' OR Season_League = '".join(seasonleagues)

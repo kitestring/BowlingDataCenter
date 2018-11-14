@@ -67,7 +67,7 @@ def starting_plot():
 
     return fig
 
-def plot_TeamHandycapTotal(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues):
+def highlight_AvePlot(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues):
     # Generate plot labels/titles
     plot_title, plotlabels_lst = plotlabels(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues)
     plot = 0
@@ -76,6 +76,9 @@ def plot_TeamHandycapTotal(bowling_df, primary_yaxis, bowlers, isIndividualBowle
     fig = plt.figure(figsize=(default_fig_size), dpi=default_fig_dpi)
     ax1 = fig.add_subplot(1, 1, 1)
     ax1.set_prop_cycle('color',plt.cm.Dark2(np.linspace(0,1,9))) #@UndefinedVariable
+    
+    if not isIndividualBowlerSelection: # bowler list box selected by team(s) and not by bowler(s)
+        bowlers = bowling_df['Bowler'].unique()
     
     for b in bowlers:
         
@@ -88,7 +91,11 @@ def plot_TeamHandycapTotal(bowling_df, primary_yaxis, bowlers, isIndividualBowle
                 xaxis = df['Date']
                 yaxis = df[column]
                 
-                ax1.plot(xaxis, yaxis, label=plotlabels_lst[plot], linestyle='-', linewidth=2.0,
+                if column == 'Avg_Before' or column == 'Avg_Total':
+                    ax1.plot(xaxis, yaxis, label=plotlabels_lst[plot], linestyle=':', linewidth=2.0, color='#FF0000', 
+                                       marker='s', markersize=4, markeredgecolor='black')
+                else:
+                    ax1.plot(xaxis, yaxis, label=plotlabels_lst[plot], linestyle='-', linewidth=2.0,
                                    marker='s', markersize=4, markeredgecolor='black')
                 plot+=1
                 

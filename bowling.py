@@ -771,6 +771,19 @@ class Window(tk.Frame):
         self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, ['Cumulative_Match_Points'], bowlers, individualbowlerselection, season_leagues))
         
     def speciality_plot_GameComparison(self):
+        
+        # Get all the user input values
+        season_leagues = self.get_SeasonLeague_Selections()
+        bowlers = self.get_Bowler_Selections()
+        individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
+        
+        # Query DB based upon the user selections, create plot, then update canvas with new plot
+        bowling_df = self.bowling_db.GameComparison_query(bowlers, individualbowlerselection, season_leagues)
+        
+        self.update_canvas(plotter.highlight_AvePlot(bowling_df, ['Gm1', 'Gm2', 'Gm3', 'Avg_Before'], bowlers, individualbowlerselection, season_leagues))
+        
+        print(bowling_df)
+        
         print('build Game Comparison plot')
         
     def speciality_plot_TeamHandycapTotal(self):
