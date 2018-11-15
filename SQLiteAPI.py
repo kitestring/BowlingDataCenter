@@ -276,7 +276,8 @@ class BowlingDB():
 		
 		# Create Days & Cumulative_Match_Points Columns
 		df['Days'] = self.getDaysSeries(df.copy())
-		df['Cumulative_Match_Points'] = self.getCumulativeMatchPointsSeries(df.copy())
+		if 'Match_Points' in df.columns.values.tolist():
+			df['Cumulative_Match_Points'] = self.getCumulativeMatchPointsSeries(df.copy())
 		
 		# Change 'Date' column as dtype from an object (Text) to datetime
 		df['Date'] = pd.to_datetime(df['Date'], format="%Y-%m-%d")	
@@ -370,7 +371,6 @@ class BowlingDB():
 				Season_league, 
 				Team, 
 				Bowler, 
-				Bowler, 
 				Gm1,
 				Gm2,
 				Gm3,
@@ -435,6 +435,153 @@ class BowlingDB():
 		df['Date'] = pd.to_datetime(df['Date'], format="%Y-%m-%d")	
 		
 		return df
+	
+	def summaryTable_query(self, bowler, isIndividualBowlerSelection, seasonleagues):
+		
+		sl = "' OR Season_League = '".join(seasonleagues)
+		
+		
+		## Build Statement Query
+		
+		# If a team bowler selection is made
+		# Query the db for a list of the 
+		# bowlers that satisfy the user defined conditions
+		if not isIndividualBowlerSelection:
+			bwl = "' OR Team = '".join(bowler)
+			sql_statement = """
+			SELECT DISTINCT(Bowler) as Bowlers
+			FROM Bowling
+			WHERE 
+				(Team = '{b}') AND 
+				(Season_League = '{s}');""".format(b=bwl, s=sl)
+			bowler = pd.read_sql_query(sql_statement, self.conn)['Bowlers'].tolist()
+		
+		bwl = "' OR Bowler = '".join(bowler)
+		
+		sql_statement = """
+		WITH InitialRowFilter AS (
+			SELECT 
+				Date,
+				(Season_league || '_' || Bowler) AS id,
+				Season_league, 
+				Bowler,
+				Gm1,
+				Gm2,
+				Gm3,
+				Avg_Total,
+				Match_Points,
+				SS,
+				Rank
+			FROM Bowling
+			WHERE 
+				(Bowler = '{b}') AND 
+				(Season_League = '{s}') AND
+				SS != 0 AND
+				Position < 6
+		),
+			
+		GameMaxMin_MatchPoints AS (
+			SELECT
+				id,
+				Season_league, 
+				Bowler,
+				MIN(
+					CASE
+						WHEN Gm1 < Gm2 AND Gm1 < Gm3 THEN Gm1
+						WHEN Gm2 < Gm1 AND Gm2 < Gm3 THEN Gm2
+						Else Gm3
+					End) As Min_Game,
+				MAX(
+					CASE
+						WHEN Gm1 > Gm2 AND Gm1 > Gm3 THEN Gm1
+						WHEN Gm2 > Gm1 AND Gm2 > Gm3 THEN Gm2
+						Else Gm3
+					End) As Max_Game,
+				MIN(SS) as Low_Series,
+				MAX(SS) as High_Series,
+				SUM(Match_Points) As Total_Match_Points
+			FROM InitialRowFilter 
+			GROUP BY
+				Season_League,
+				Bowler
+		),
+		
+		Starting_Total_Average AS (
+			SELECT
+				id,
+				Date,
+				Season_league, 
+				Bowler,
+				MIN(Date),
+				Avg_Total AS Start_Avg
+			FROM InitialRowFilter
+			Group BY
+				Season_League,
+				Bowler
+			HAVING
+				MIN(Date) = Date
+		),
+		
+		Current_Total_Average AS (
+			SELECT
+				id,
+				Date,
+				Season_league, 
+				Bowler,
+				Avg_Total AS Current_Avg,
+				Rank
+			FROM InitialRowFilter
+			Group BY
+				Season_League,
+				Bowler
+			HAVING
+				MAX(Date) = Date
+		)
+					
+		SELECT
+			GameMaxMin_MatchPoints.Season_League,
+			GameMaxMin_MatchPoints.Bowler,
+			CASE 
+				WHEN GameMaxMin_MatchPoints.Min_Game IS NULL THEN 0
+				WHEN GameMaxMin_MatchPoints.Min_Game = 'NULL' THEN 0
+				ELSE GameMaxMin_MatchPoints.Min_Game
+			END AS Low_Game,
+			CASE
+				WHEN GameMaxMin_MatchPoints.Max_Game IS NULL THEN 0
+				WHEN GameMaxMin_MatchPoints.Max_Game = 'NULL' THEN 0
+				ELSE GameMaxMin_MatchPoints.Max_Game
+			END AS High_Game,
+			CASE
+				WHEN GameMaxMin_MatchPoints.Low_Series IS NULL THEN 0
+				WHEN GameMaxMin_MatchPoints.Low_Series = 'NULL' THEN 0
+				ELSE GameMaxMin_MatchPoints.Low_Series
+			END AS Low_series,
+			CASE
+				WHEN GameMaxMin_MatchPoints.High_Series IS NULL THEN 0
+				WHEN GameMaxMin_MatchPoints.High_Series = 'NULL' THEN 0
+				ELSE GameMaxMin_MatchPoints.High_Series
+			END AS High_series,
+			CASE
+				WHEN GameMaxMin_MatchPoints.Total_Match_Points = '' THEN 0
+				WHEN GameMaxMin_MatchPoints.Total_Match_Points IS NULL THEN 0
+				ELSE GameMaxMin_MatchPoints.Total_Match_Points
+			END AS Match_Pts,
+			Starting_Total_Average.Start_Avg,
+			Current_Total_Average.Current_Avg,
+			Current_Total_Average.Rank
+		FROM GameMaxMin_MatchPoints
+		INNER JOIN Starting_Total_Average ON Starting_Total_Average.id = GameMaxMin_MatchPoints.id
+		INNER JOIN Current_Total_Average ON Current_Total_Average.id = GameMaxMin_MatchPoints.id
+		ORDER BY GameMaxMin_MatchPoints.id ASC;
+		""".format(b=bwl, s=sl)
+			
+		df = pd.read_sql_query(sql_statement, self.conn)
+		
+		df.fillna(0, inplace=True)
+		
+		return df
+	
+	
 	
 	def plotreportquery(self, bowler, seasonleagues):
 		

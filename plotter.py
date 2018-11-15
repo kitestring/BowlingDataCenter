@@ -67,6 +67,71 @@ def starting_plot():
 
     return fig
 
+def summaryTablePlot(df):
+    bowlers = sorted(df['Bowler'].unique().tolist())
+    season_leagues = sorted(df['Season_league'].unique().tolist())
+    
+    # Build season bests string
+    season_best = 'Season - League\tBowler Name\tL. Gm\tH. Gm\tL. Ser\tH. Ser\tSt. Avg\tCur. Avg\tMatch Pts\tRank'
+    season_best = season_best.replace("\t", " " * 4)
+    season_best = season_best + '\n' +  ('-' * len(season_best))
+    
+    for b in bowlers:
+        if len(b) < 11:
+            bwl = b + (" " * (11 - len(b)))
+        else:
+            bwl = b[:11]
+        
+        for sl in season_leagues:
+            try:
+                # The static number is the length of the corresponding header
+                lg = str(df['Low_Game'][(df['Season_league'] == sl) & (df['Bowler'] == b)].tolist()[0]) 
+                lg = lg + (" " * (5 - len(lg)))
+                hg = str(df['High_Game'][(df['Season_league'] == sl) & (df['Bowler'] == b)].tolist()[0])
+                hg = hg + (" " * (5 - len(hg)))
+                ls = str(df['Low_series'][(df['Season_league'] == sl) & (df['Bowler'] == b)].tolist()[0])
+                ls = ls + (" " * (6 - len(ls)))
+                hs = str(df['High_series'][(df['Season_league'] == sl) & (df['Bowler'] == b)].tolist()[0])
+                hs = hs + (" " * (6 - len(hs)))
+                sa = str(df['Start_Avg'][(df['Season_league'] == sl) & (df['Bowler'] == b)].tolist()[0])
+                sa = sa + (" " * (7 - len(sa)))
+                ca = str(df['Current_Avg'][(df['Season_league'] == sl) & (df['Bowler'] == b)].tolist()[0])
+                ca = ca + (" " * (8 - len(ca)))
+                mp = str(int(df['Match_Pts'][(df['Season_league'] == sl) & (df['Bowler'] == b)].tolist()[0]))
+                mp = mp + (" " * (9 - len(mp)))
+                rk = str(df['Rank'][(df['Season_league'] == sl) & (df['Bowler'] == b)].tolist()[0])
+                
+                season_best = season_best + '\n' + sl[:15] + "\t" + bwl + "\t" + lg + "\t" + hg + "\t" + ls + "\t" + hs + "\t" + sa + "\t" + ca + "\t" + mp + "\t" + rk 
+            
+            except IndexError:
+                # If the user defined query conditions returns a null row 
+                # this handles the index error
+                pass
+            
+    season_best = season_best.replace("\t", " " * 4)
+    
+    ## Create figure, and add Sub-plot, 
+    fig = plt.figure(figsize=(default_fig_size), dpi=default_fig_dpi)
+    ax1 = fig.add_subplot(1, 1, 1)
+    
+    ax1.plot([0,1] , [0,1], color='white')
+    
+    # Add season best text on plot
+    ax1.text(-0.21, 0.6, season_best, fontsize=9, family='monospace')
+    
+    ## Remove all graph like stuff from plot
+    # drop axis borders    
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['left'].set_visible(False)
+    ax1.spines['bottom'].set_visible(False)
+    # drop ticks
+    ax1.tick_params(axis="both", which="both", bottom="off", top="off",    
+            labelbottom="off", left="off", right="off", labelleft="off")
+    
+    return fig
+
+
 def highlight_AvePlot(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues):
     # Generate plot labels/titles
     plot_title, plotlabels_lst = plotlabels(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues)
