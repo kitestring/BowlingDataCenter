@@ -176,50 +176,47 @@ class BowlingDB():
 		
 		return result['Cumulative_Match_Points']
 		
+	
+	def seriesScratch_query(self, columns, bowler, isIndividualBowlerSelection, seasonleagues):
+		df = self.previewplot_query(columns, bowler, isIndividualBowlerSelection, seasonleagues)
+		
+		return df
+	
 	def previewplot_query(self, columns, bowler, isIndividualBowlerSelection, seasonleagues):
 		
+		# Comma seperates the selected columns
+		# This will be instered into the query statement
 		columns_comma_seperated = ', '.join(columns)
+		
+		# Build WHERE conditions that will be inserted into the final query statement
 		sl = "' OR Season_League = '".join(seasonleagues)
 		
-		# Build Statement Query
 		if isIndividualBowlerSelection:
-			bwl = "' OR Bowler = '".join(bowler)
-			sql_statement = """
-			SELECT 
-				Date, 
-				Season_league, 
-				Team, 
-				Bowler, 
-				{c} 
-			FROM Bowling 
-			wHERE 
-				(Bowler = '{b}') AND 
-				(Season_League = '{s}') AND 
-				SS != 0 AND
-				Position < 6
-			ORDER BY 
-				Season_League, 
-				Bowler, 
-				Date ASC;""".format(c=columns_comma_seperated, b=bwl, s=sl)
+			col = 'Bowler'
 		else:
-			bwl = "' OR Team = '".join(bowler)
-			sql_statement = """
-			SELECT 
-				Date, 
-				Season_league, 
-				Team, 
-				Bowler, 
-				{c} 
-			FROM Bowling 
-			wHERE 
-				(Team = '{b}') AND 
-				(Season_League = '{s}') AND 
-				SS != 0 AND
-				Position < 6 
-			ORDER BY 
-				Season_League, 
-				Bowler, 
-				Date ASC;""".format(c=columns_comma_seperated, b=bwl, s=sl)
+			col = 'Team'
+			
+		bowler_selection_spacer = "' OR {c} = '".format(c=col)
+		bwl = bowler_selection_spacer.join(bowler)
+		
+		# Build Statement Query
+		sql_statement = """
+		SELECT 
+			Date, 
+			Season_league, 
+			Team, 
+			Bowler, 
+			{c} 
+		FROM Bowling 
+		wHERE 
+			({fc} = '{b}') AND 
+			(Season_League = '{s}') AND 
+			SS != 0 AND
+			Position < 6
+		ORDER BY 
+			Season_League, 
+			Bowler, 
+			Date ASC;""".format(c=columns_comma_seperated, fc=col, b=bwl, s=sl)
 		
 		df = pd.read_sql_query(sql_statement, self.conn)
 		
@@ -233,44 +230,41 @@ class BowlingDB():
 	
 	def csvexport_query(self, columns, bowler, isIndividualBowlerSelection, seasonleagues):
 		
-		columns_comma_seperated = ', '.join(columns)
+		# Build WHERE conditions that will be inserted into the final query statement
 		sl = "' OR Season_League = '".join(seasonleagues)
+		columns_comma_seperated = ', '.join(columns)
 		
-		# Build Statement Query
-		if isIndividualBowlerSelection:
-			bwl = "' OR Bowler = '".join(bowler)
-			sql_statement = """
-			SELECT 
-				Date, 
-				Season_league, 
-				Team, 
-				Bowler, 
-				{c} 
-			FROM Bowling 
-			wHERE 
-				(Bowler = '{b}') AND 
-				(Season_League = '{s}')
-			ORDER BY 
-				Season_League, 
-				Bowler, 
-				Date ASC;""".format(c=columns_comma_seperated, b=bwl, s=sl)
-		else:
+		# If a team bowler selection is made
+		# Query the db for a list of the 
+		# bowlers that satisfy the user defined conditions
+		if not isIndividualBowlerSelection:
 			bwl = "' OR Team = '".join(bowler)
 			sql_statement = """
-			SELECT 
-				Date, 
-				Season_league, 
-				Team, 
-				Bowler, 
-				{c} 
-			FROM Bowling 
-			wHERE 
+			SELECT DISTINCT(Bowler) as Bowlers
+			FROM Bowling
+			WHERE 
 				(Team = '{b}') AND 
-				(Season_League = '{s}') 
-			ORDER BY 
-				Season_League, 
-				Bowler, 
-				Date ASC;""".format(c=columns_comma_seperated, b=bwl, s=sl)
+				(Season_League = '{s}');""".format(b=bwl, s=sl)
+			bowler = pd.read_sql_query(sql_statement, self.conn)['Bowlers'].tolist()
+		
+		bwl = "' OR Bowler = '".join(bowler)
+		
+		## Build Statement Query
+		sql_statement = """
+		SELECT 
+			Date, 
+			Season_league, 
+			Team, 
+			Bowler, 
+			{c} 
+		FROM Bowling 
+		wHERE 
+			(Bowler = '{b}') AND 
+			(Season_League = '{s}')
+		ORDER BY 
+			Season_League, 
+			Bowler, 
+			Date ASC;""".format(c=columns_comma_seperated, b=bwl, s=sl)
 		
 		df = pd.read_sql_query(sql_statement, self.conn)
 		
@@ -286,45 +280,37 @@ class BowlingDB():
 	
 	def matchPointsCumSum_query(self, bowler, isIndividualBowlerSelection, seasonleagues):
 		
+		# Build WHERE conditions that will be inserted into the final query statement
 		sl = "' OR Season_League = '".join(seasonleagues)
 		
-		# Build Statement Query
 		if isIndividualBowlerSelection:
-			bwl = "' OR Bowler = '".join(bowler)
-			sql_statement = """
-			SELECT 
-				Date, 
-				Season_league, 
-				Team, 
-				Bowler, 
-				Match_Points 
-			FROM Bowling 
-			wHERE 
-				(Bowler = '{b}') AND 
-				(Season_League = '{s}') AND
-				Position < 6
-			ORDER BY 
-				Season_League, 
-				Bowler, 
-				Date ASC;""".format(b=bwl, s=sl)
+			col = 'Bowler'
 		else:
-			bwl = "' OR Team = '".join(bowler)
-			sql_statement = """
-			SELECT 
-				Date, 
-				Season_league, 
-				Team, 
-				Bowler, 
-				Match_Points 
-			FROM Bowling 
-			wHERE 
-				(Team = '{b}') AND 
-				(Season_League = '{s}') AND
-				Position < 6
-			ORDER BY 
-				Season_League, 
-				Bowler, 
-				Date ASC;""".format(b=bwl, s=sl)
+			col = 'Team'
+			
+		bowler_selection_spacer = "' OR {c} = '".format(c=col)
+		bwl = bowler_selection_spacer.join(bowler)
+		
+		## Build Statement Query
+		sql_statement = """
+		SELECT 
+			Date, 
+			Season_league, 
+			Team, 
+			Bowler, 
+			Match_Points 
+		FROM Bowling 
+		wHERE 
+			({c} = '{b}') AND 
+			(Season_League = '{s}') AND
+			SS != 0 AND
+			Position < 6 AND
+			TEAM IS NOT NULL AND
+			TEAM != 0
+		ORDER BY 
+			Season_League, 
+			Bowler, 
+			Date ASC;""".format(c=col, b=bwl, s=sl)
 		
 		df = pd.read_sql_query(sql_statement, self.conn)
 		
@@ -339,51 +325,48 @@ class BowlingDB():
 	
 	def GameComparison_query(self, bowler, isIndividualBowlerSelection, seasonleagues):
 		
+		# Build WHERE conditions that will be inserted into the final query statement
 		sl = "' OR Season_League = '".join(seasonleagues)
 		
-		# Build Statement Query
-		if isIndividualBowlerSelection:
-			bwl = "' OR Bowler = '".join(bowler)
-			sql_statement = """
-			SELECT 
-				Date, 
-				Season_league, 
-				Team, 
-				Bowler, 
-				Gm1,
-				Gm2,
-				Gm3,
-				Avg_Before
-			FROM Bowling 
-			wHERE 
-				(Bowler = '{b}') AND 
-				(Season_League = '{s}') AND
-				Position < 6
-			ORDER BY 
-				Season_League, 
-				Bowler, 
-				Date ASC;""".format(b=bwl, s=sl)
-		else:
+		# If a team bowler selection is made
+		# Query the db for a list of the 
+		# bowlers that satisfy the user defined conditions
+		if not isIndividualBowlerSelection:
 			bwl = "' OR Team = '".join(bowler)
 			sql_statement = """
-			SELECT 
-				Date, 
-				Season_league, 
-				Team, 
-				Bowler, 
-				Gm1,
-				Gm2,
-				Gm3,
-				Avg_Before 
-			FROM Bowling 
-			wHERE 
+			SELECT DISTINCT(Bowler) as Bowlers
+			FROM Bowling
+			WHERE 
 				(Team = '{b}') AND 
-				(Season_League = '{s}') AND
-				Position < 6
-			ORDER BY 
-				Season_League, 
-				Bowler, 
-				Date ASC;""".format(b=bwl, s=sl)
+				(Season_League = '{s}');""".format(b=bwl, s=sl)
+			bowler = pd.read_sql_query(sql_statement, self.conn)['Bowlers'].tolist()
+		
+		bwl = "' OR Bowler = '".join(bowler)
+		
+		# Build Statement Query
+		bwl = "' OR Bowler = '".join(bowler)
+		sql_statement = """
+		SELECT 
+			Date, 
+			Season_league, 
+			Team, 
+			Bowler, 
+			Gm1,
+			Gm2,
+			Gm3,
+			Avg_Before
+		FROM Bowling 
+		wHERE 
+			(Bowler = '{b}') AND 
+			(Season_League = '{s}') AND
+			SS != 0 AND
+			Position < 6 AND
+			TEAM IS NOT NULL AND
+			TEAM != 0
+		ORDER BY 
+			Season_League, 
+			Bowler, 
+			Date ASC;""".format(b=bwl, s=sl)
 		
 		df = pd.read_sql_query(sql_statement, self.conn)
 		
@@ -393,14 +376,24 @@ class BowlingDB():
 		# Change 'Date' column as dtype from an object (Text) to datetime 
 		df['Date'] = pd.to_datetime(df['Date'], format="%Y-%m-%d")	
 		
+		try:
+			df = df[df['Gm1'] != 'NULL'].copy()
+		except TypeError:
+			pass
+		
 		return df
 	
 	def teamHandicap_query(self, bowler, seasonleagues):
 		
+		# Build WHERE conditions that will be inserted into the final query statement
 		sl = "' OR Season_League = '".join(seasonleagues)
 		
-		# Build Statement Query
+		# There is a check to prevent an individual bowler selection,
+		# Thus no bowler by team selections will pass the check
 		bwl = "' OR Team = '".join(bowler)
+		
+		## Build Statement Query
+		
 		sql_statement = """
 		SELECT 
 			Season_League,
@@ -438,10 +431,8 @@ class BowlingDB():
 	
 	def summaryTable_query(self, bowler, isIndividualBowlerSelection, seasonleagues):
 		
+		# Build WHERE conditions that will be inserted into the final query statement
 		sl = "' OR Season_League = '".join(seasonleagues)
-		
-		
-		## Build Statement Query
 		
 		# If a team bowler selection is made
 		# Query the db for a list of the 
@@ -458,10 +449,13 @@ class BowlingDB():
 		
 		bwl = "' OR Bowler = '".join(bowler)
 		
+		
+		## Build Statement Query
 		sql_statement = """
 		WITH InitialRowFilter AS (
 			SELECT 
 				Date,
+				Team,
 				(Season_league || '_' || Bowler) AS id,
 				Season_league, 
 				Bowler,
@@ -477,7 +471,9 @@ class BowlingDB():
 				(Bowler = '{b}') AND 
 				(Season_League = '{s}') AND
 				SS != 0 AND
-				Position < 6
+				Position < 6 AND
+				TEAM IS NOT NULL AND
+				TEAM != 0
 		),
 			
 		GameMaxMin_MatchPoints AS (
@@ -512,7 +508,7 @@ class BowlingDB():
 				Date,
 				Season_league, 
 				Bowler,
-				MIN(Date),
+				MIN(Date) AS Start_Date,
 				Avg_Total AS Start_Avg
 			FROM InitialRowFilter
 			Group BY
@@ -528,6 +524,7 @@ class BowlingDB():
 				Date,
 				Season_league, 
 				Bowler,
+				MAX(Date) AS Current_Date,
 				Avg_Total AS Current_Avg,
 				Rank
 			FROM InitialRowFilter
@@ -567,8 +564,11 @@ class BowlingDB():
 				ELSE GameMaxMin_MatchPoints.Total_Match_Points
 			END AS Match_Pts,
 			Starting_Total_Average.Start_Avg,
+			Starting_Total_Average.Start_Date,
 			Current_Total_Average.Current_Avg,
+			Current_Total_Average.Current_Date,
 			Current_Total_Average.Rank
+			
 		FROM GameMaxMin_MatchPoints
 		INNER JOIN Starting_Total_Average ON Starting_Total_Average.id = GameMaxMin_MatchPoints.id
 		INNER JOIN Current_Total_Average ON Current_Total_Average.id = GameMaxMin_MatchPoints.id

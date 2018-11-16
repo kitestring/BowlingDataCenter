@@ -47,14 +47,16 @@ class Window(tk.Frame):
         
         # This allows for the insertion of a list item at specified index
         insert_at = 0  # index at which to insert item, in this case "None"
-        speciality_plots_temp = sorted(['Cumulative Match Points', 'Game Comparison', 'Team Handicap Total', 'Summary Table'])
+        speciality_plots_temp = sorted(['Cumulative Match Points', 'Game Comparison', 'Team Handicap Total', 
+                                        'Summary Table', 'Series Scratch'])
         self.speciality_plots = speciality_plots_temp[:] # created copy of list analytical_columns as sec_yaxis_analytical_columns
         self.speciality_plots[insert_at:insert_at] = ['None'] # insert "None" within sec_yaxis_analytical_columns at index = insert_at
 
         self.speciality_plots_method_dict = {'Cumulative Match Points': self.speciality_plot_CumulativeMatchPoints,
                                              'Game Comparison': self.speciality_plot_GameComparison,
                                              'Team Handicap Total': self.speciality_plot_TeamHandycapTotal,
-                                             'Summary Table': self.speciality_plot_SummaryTable}
+                                             'Summary Table': self.speciality_plot_SummaryTable,
+                                             "Series Scratch": self.speciality_plot_SeriesScratch}
         self.speciality_plots_strvar = tk.StringVar(value=self.speciality_plots)
         
         self.plots = []
@@ -763,6 +765,17 @@ class Window(tk.Frame):
         print(bowling_df)
         self.standardstatusmessage()
     
+    def speciality_plot_SeriesScratch(self):
+        
+        # Get the relevant user input values
+        season_leagues = self.get_SeasonLeague_Selections()
+        bowlers = self.get_Bowler_Selections()
+        individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
+        
+        # Query DB based upon the user selections, create plot, then update canvas with new plot
+        bowling_df = self.bowling_db.seriesScratch_query(['SS', 'Avg_Total', 'HCP'], bowlers, individualbowlerselection, season_leagues)
+        print(bowling_df)
+    
     
     def speciality_plot_CumulativeMatchPoints(self):
         
@@ -785,7 +798,7 @@ class Window(tk.Frame):
         
         # Query DB based upon the user selections, create plot, then update canvas with new plot
         bowling_df = self.bowling_db.GameComparison_query(bowlers, individualbowlerselection, season_leagues)
-        
+        print(bowling_df)
         
         self.update_canvas(plotter.highlight_AvePlot(bowling_df, ['Gm1', 'Gm2', 'Gm3', 'Avg_Before'], bowlers, individualbowlerselection, season_leagues))
         
