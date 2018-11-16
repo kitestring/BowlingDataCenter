@@ -10,13 +10,12 @@ import calendar
 import datetime
 import numpy as np
 
-import plotter # @unresolvedimport
-from jsonAPI import JSON_Tools # @unresolvedimport
-from SQLiteAPI import BowlingDB # @unresolvedimport
+import plotter  # @unresolvedimport
+from jsonAPI import JSON_Tools  # @unresolvedimport
+from SQLiteAPI import BowlingDB  # @unresolvedimport
+
 
 class Window(tk.Frame):
-    
-
 
     def __init__(self, master, bowlinginstancedata, jsonfilepath, utils_directory):
         tk.Frame.__init__(self, master)
@@ -30,7 +29,6 @@ class Window(tk.Frame):
         self.jsonfilepath = jsonfilepath
         self.utils_directory = utils_directory
         self.defaultsave_directory = os.path.join('T:\\', 'TC', 'Documents', 'BowlingLeagues')
-        
         
         self.calendar_selection = {}
         
@@ -47,10 +45,10 @@ class Window(tk.Frame):
         
         # This allows for the insertion of a list item at specified index
         insert_at = 0  # index at which to insert item, in this case "None"
-        speciality_plots_temp = sorted(['Cumulative Match Points', 'Game Comparison', 'Team Handicap Total', 
+        speciality_plots_temp = sorted(['Cumulative Match Points', 'Game Comparison', 'Team Handicap Total',
                                         'Summary Table', 'Series Scratch'])
-        self.speciality_plots = speciality_plots_temp[:] # created copy of list analytical_columns as sec_yaxis_analytical_columns
-        self.speciality_plots[insert_at:insert_at] = ['None'] # insert "None" within sec_yaxis_analytical_columns at index = insert_at
+        self.speciality_plots = speciality_plots_temp[:]  # created copy of list analytical_columns as sec_yaxis_analytical_columns
+        self.speciality_plots[insert_at:insert_at] = ['None']  # insert "None" within sec_yaxis_analytical_columns at index = insert_at
 
         self.speciality_plots_method_dict = {'Cumulative Match Points': self.speciality_plot_CumulativeMatchPoints,
                                              'Game Comparison': self.speciality_plot_GameComparison,
@@ -59,7 +57,7 @@ class Window(tk.Frame):
                                              "Series Scratch": self.speciality_plot_SeriesScratch}
         self.speciality_plots_strvar = tk.StringVar(value=self.speciality_plots)
         
-        self.plots = []
+        self.plots = sorted(self.saved_plots.keys())
         self.plots_strvar = tk.StringVar(value=self.plots)
         
         self.reports = []
@@ -79,14 +77,14 @@ class Window(tk.Frame):
         self.master.protocol("WM_DELETE_WINDOW", self._delete_window)
                
         # Create and grid the outer content frame
-        self.contentframe.grid(column=0, row=0, sticky=(tk.N,tk.W,tk.E,tk.S))
+        self.contentframe.grid(column=0, row=0, sticky=(tk.N, tk.W, tk.E, tk.S))
         self.master.grid_columnconfigure(0, weight=1)
         self.master.grid_rowconfigure(0, weight=1)
         
         # Initialize the canvas and grit it 
-        self.update_canvas(plotter.starting_plot())
+        self.update_canvas(plotter.starting_plot(), True)
         
-        ## Create Season_League Widget Group
+        # # Create Season_League Widget Group
         self.seasonleague_lbox = tk.Listbox(self.contentframe, listvariable=self.season_league_strvar, height=4, width=25,
                                  exportselection=tk.FALSE, selectmode=tk.EXTENDED, name="seasonleague")
         seasonleague_lbl = tk.Label(self.contentframe, text='Season League', anchor=tk.W)
@@ -94,39 +92,39 @@ class Window(tk.Frame):
         seasonleague_btn = tk.Button(self.contentframe, text='Add', command=self.add_season_league)
         seasonleague_lbl_entry = tk.Entry(self.contentframe, textvariable=self.season_league_entry, width=19)
         
-        ## Create primary y-axis Widget Group
+        # # Create primary y-axis Widget Group
         self.pri_yaxis_lbox = tk.Listbox(self.contentframe, listvariable=self.primary_yaxis_strvar, height=4, width=25,
                                  exportselection=tk.FALSE, selectmode=tk.EXTENDED, name="primary_yaxis")
         pri_yaxis_lbl = tk.Label(self.contentframe, text='Primary y-axis', anchor=tk.W)
         
-        ## Create Plot queue Widget Group
+        # # Create Plot queue Widget Group
         self.plots_lbox = tk.Listbox(self.contentframe, listvariable=self.plots_strvar, height=4, width=25,
-                                 exportselection=tk.FALSE, selectmode=tk.EXTENDED, name="plots")
+                                 exportselection=tk.FALSE, name="plots")
         plots_lbl = tk.Label(self.contentframe, text='Plot Queue', anchor=tk.W)
-        addplot_btn = tk.Button(self.contentframe, text='Add', command=self.temp)
-        removeplot_btn = tk.Button(self.contentframe, text='Remove', command=self.temp)
+        addplot_btn = tk.Button(self.contentframe, text='Add', command=self.addplot)
+        removeplot_btn = tk.Button(self.contentframe, text='Remove', command=self.removeplot)
         
-        ## Create bowler Widget Group
-        self.bowlers_lbox = tk.Listbox(self.contentframe, listvariable=self.bowlers_strvar, height=4, width=25, 
+        # # Create bowler Widget Group
+        self.bowlers_lbox = tk.Listbox(self.contentframe, listvariable=self.bowlers_strvar, height=4, width=25,
                                       exportselection=tk.FALSE, selectmode=tk.EXTENDED, name="bowler")
         bowlers_lbl = tk.Label(self.contentframe, text='Bowlers', anchor=tk.W)
         bowlers_selection_lbl = tk.Label(self.contentframe, text='Bowler Selection Type', anchor=tk.W)
         self.individual_radio = tk.Radiobutton(self.contentframe, text="Individual", padx=0, variable=self.bowler_selection_type_intvar, value=0, command=self.select_bowler_RdoBtn)
         self.team_radio = tk.Radiobutton(self.contentframe, text="Team", padx=0, variable=self.bowler_selection_type_intvar, value=1, command=self.select_bowler_RdoBtn)
         
-        ## Create speciality_plots y-axis Widget Group
+        # # Create speciality_plots y-axis Widget Group
         self.speciality_plots_lbox = tk.Listbox(self.contentframe, listvariable=self.speciality_plots_strvar, height=4, width=25,
                                  exportselection=tk.FALSE, name="speciality_plots")
         speciality_plots_lbl = tk.Label(self.contentframe, text='Speciality Plots', anchor=tk.W)
         
-        ## Create Saved Reports queue Widget Group
+        # # Create Saved Reports queue Widget Group
         self.reports_lbox = tk.Listbox(self.contentframe, listvariable=self.reports_strvar, height=4, width=25,
                                  exportselection=tk.FALSE, selectmode=tk.EXTENDED, name="reports")
         reports_lbl = tk.Label(self.contentframe, text='Saved Reports', anchor=tk.W)
         savereport_btn = tk.Button(self.contentframe, text='Save', command=self.temp)
         removeremove_btn = tk.Button(self.contentframe, text='Remove', command=self.temp)
         
-        ## Final Buttons row Widget Group
+        # # Final Buttons row Widget Group
         preview_btn = tk.Button(self.contentframe, text='Preview', command=self.preview_plot)
         buildreport_btn = tk.Button(self.contentframe, text='Build Report', command=self.temp)
         export_btn = tk.Button(self.contentframe, text='Export csv', command=self.export_csv)
@@ -169,7 +167,6 @@ class Window(tk.Frame):
         
         status.grid(column=0, row=11, columnspan=5, sticky=(tk.W, tk.E, tk.S))
         
-        
         # Season League Scroll bar    
         seasonleague_sb = tk.Scrollbar(self.contentframe)
         seasonleague_sb.grid(column=2, row=1, ipady=9, sticky=(tk.S))
@@ -206,15 +203,14 @@ class Window(tk.Frame):
         self.reports_lbox.configure(yscrollcommand=reports_sb.set)
         reports_sb.config(command=self.reports_lbox.yview)
         
-        
-        ### Tab Menu
+        # ## Tab Menu
         # Tab Menu of the main frame
         tab_menu = tk.Menu(self.master) 
         self.master.config(menu=tab_menu)
         
         # Create DataBase tab object
         Database_tab = tk.Menu(tab_menu)
-        Load_tab = tk.Menu(tab_menu) #@unusedvariable
+        Load_tab = tk.Menu(tab_menu)  # @unusedvariable
         
         # create tab commands for Database tab
         # Commands will be list in the order they are added from 1st is top
@@ -222,7 +218,7 @@ class Window(tk.Frame):
         Database_tab.add_command(label='Connect', command=self.database_connect)
         Database_tab.add_command(label='Current', command=self.database_display_current_connection)
         
-        tab_menu.add_cascade(label='Database', menu=Database_tab) # Add Database tab object to tab_menu
+        tab_menu.add_cascade(label='Database', menu=Database_tab)  # Add Database tab object to tab_menu
         
         # Create Load tab object
         Load_tab = tk.Menu(tab_menu)
@@ -231,23 +227,22 @@ class Window(tk.Frame):
         Load_tab.add_command(label='Define Dataset Date', command=self.set_load_date)
         Load_tab.add_command(label='Bowling Data', command=self.load_bowling_data)
         
-        tab_menu.add_cascade(label='Load', menu=Load_tab) # Add Load tab object to tab_menu
+        tab_menu.add_cascade(label='Load', menu=Load_tab)  # Add Load tab object to tab_menu
         
-        
-        ### Set event bindings for when a plot selection is made
+        # ## Set event bindings for when a plot selection is made
         self.seasonleague_lbox.bind('<<ListboxSelect>>', self.select_seasonleague_lbox)
         self.pri_yaxis_lbox.bind('<<ListboxSelect>>', self.select_pri_yaxis_lbox)
-        self.plots_lbox.bind('<<ListboxSelect>>', self.lboxtemp)
+        self.plots_lbox.bind('<<ListboxSelect>>', self.select_plots_lbox)
         self.bowlers_lbox.bind('<<ListboxSelect>>', self.select_bowler_lbox)
         self.speciality_plots_lbox.bind('<<ListboxSelect>>', self.select_speciality_plots_lbox) 
         self.reports_lbox.bind('<<ListboxSelect>>', self.lboxtemp)
         
-        ## Initialize the list boxes, note the bowler list box
+        # # Initialize the list boxes, note the bowler list box
         # will not be initialized because it is dependent on the 
         # season league selection
         self.update_seasonleague_lbox()
         self.update_primary_yaxis_lbox()
-        self.update_plots_lbox()
+        self.update_plots_lbox(None)
         self.update_reports_lbox()
         self.update_speciality_plots()
         
@@ -256,8 +251,8 @@ class Window(tk.Frame):
     def standardstatusmessage(self):
         
         sl = "Season League: " + " - ".join(self.get_SeasonLeague_Selections())
-        individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
-        if individualbowlerselection:
+        self.individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
+        if self.individualbowlerselection:
             bwl = 'Bowler: ' + ' - '.join(self.get_Bowler_Selections())
         else:
             bwl = 'Team: ' + ' - '.join(self.get_Bowler_Selections())
@@ -280,6 +275,12 @@ class Window(tk.Frame):
         
     def select_speciality_plots_lbox(self, e):
         self.standardstatusmessage()
+        
+    def select_plots_lbox(self, e):
+        # plot = self.get_plots_Selections()
+        # print('plot: ', plot)
+        # print(self.saved_plots[plot])
+        self.preview_plot(True)
         
     def select_bowler_RdoBtn(self):
         # 0 = Individual Bowler Selection
@@ -309,11 +310,11 @@ class Window(tk.Frame):
         self.season_league_strvar.set(value=self.season_league)
         
         # set the row background colors to alternate for the sake of readability
-        for i in range(0,len(self.season_league),2):
+        for i in range(0, len(self.season_league), 2):
                 self.seasonleague_lbox.itemconfigure(i, background='#f0f0ff')
                 
     def update_bowlers_lbox(self):
-        ## Returns the bowlers that were in the selected season league(s)
+        # # Returns the bowlers that were in the selected season league(s)
         # Check the radio buttons to see if selections should be made by 
         # individual bowler or by team
         
@@ -321,14 +322,14 @@ class Window(tk.Frame):
         seasonleagues = self.get_SeasonLeague_Selections()
         
         # Verify that at least 1 season league is selected
-        if len(seasonleagues)<1:
+        if len(seasonleagues) < 1:
             pass
         else:
             
             # Query depends on the radio button selection
-            if self.bowler_selection_type_intvar.get() == 0: # Individual Bowler Selection
+            if self.bowler_selection_type_intvar.get() == 0:  # Individual Bowler Selection
                 new_bowlers = self.bowling_db.getUniqueBowlerValuesWhenSeasonLeague(seasonleagues)['Bowler'].tolist()
-            elif self.bowler_selection_type_intvar.get() == 1: # Team Bowler Selection
+            elif self.bowler_selection_type_intvar.get() == 1:  # Team Bowler Selection
                 new_bowlers = []
                 teams = self.bowling_db.getUniqueTeams_WhenSeasonLeague(seasonleagues)['Team'].tolist()
                 for t in teams:
@@ -355,7 +356,7 @@ class Window(tk.Frame):
             self.bowlers_strvar.set(value=self.bowlers)
             
             # set the row background colors to alternate for the sake of readability
-            for i in range(0,len(self.bowlers),2):
+            for i in range(0, len(self.bowlers), 2):
                     self.bowlers_lbox.itemconfigure(i, background='#f0f0ff')
     
     def update_primary_yaxis_lbox(self):
@@ -365,71 +366,108 @@ class Window(tk.Frame):
         analytical_columns = [c for c in all_db_columns if c not in non_analytical_columns]
         analytical_columns = sorted(analytical_columns)       
         
-        ## Update pri_yaxis values in the list boxes 
+        # # Update pri_yaxis values in the list boxes 
         self.primary_yaxis = analytical_columns
         self.primary_yaxis_strvar.set(value=self.primary_yaxis)
         
         # set the row background colors to alternate for the sake of readability
-        for i in range(0,len(self.primary_yaxis),2):
+        for i in range(0, len(self.primary_yaxis), 2):
                 self.pri_yaxis_lbox.itemconfigure(i, background='#f0f0ff')
                 
     def update_speciality_plots(self):
         # set the row background colors to alternate for the sake of readability
-        for i in range(0,len(self.speciality_plots),2):
+        for i in range(0, len(self.speciality_plots), 2):
                 self.speciality_plots_lbox.itemconfigure(i, background='#f0f0ff')
-            
     
-    def update_plots_lbox(self):
-        pass
+    def update_plots_lbox(self, newplot, remove_newplot=False):
+        
+        
+        if remove_newplot == False:
+            # Add new plot to the plots_lbox
+            if newplot != None:
+                self.plots.append(newplot)
+                self.plots = sorted(self.plots)
+                self.plots_strvar.set(value=self.plots)
+                
+        elif remove_newplot == True:
+            self.plots_lbox.selection_clear(0, tk.END)
+            self.plots.remove(newplot)
+            self.saved_plots.pop(newplot, None)
+            self.plots_strvar.set(value=self.plots)
+        
+        # set the row background colors to alternate for the sake of readability
+        for i in range(0, len(self.plots), 2):
+                self.plots_lbox.itemconfigure(i, background='#f0f0ff')
     
     def update_reports_lbox(self):
         pass
         
-    def get_SeasonLeague_Selections(self):
+    def get_SeasonLeague_Selections(self, getIndexes=False):
         seasonleague_selections = self.seasonleague_lbox.curselection()
         
-        if len(seasonleague_selections)!=0:
-            seasonleagues_idxs = [int(i) for i in seasonleague_selections] #@unusedvariable
+        if getIndexes == True:
+            return seasonleague_selections
+        
+        if len(seasonleague_selections) != 0:
+            seasonleagues_idxs = [int(i) for i in seasonleague_selections]  # @unusedvariable
             return [self.season_league[i] for i in seasonleagues_idxs]
         else:
             return ['None']
         
-    def get_Bowler_Selections(self):
+    def get_Bowler_Selections(self, getIndexes=False):
         bowler_selections = self.bowlers_lbox.curselection()
         
-        if len(bowler_selections)==0:
+        if getIndexes == True:
+            return bowler_selections
+        
+        if len(bowler_selections) == 0:
             return ['None']
         
-        bowler_idxs = [int(i) for i in bowler_selections] #@unusedvariable
+        bowler_idxs = [int(i) for i in bowler_selections]  # @unusedvariable
         
-        if self.bowler_selection_type_intvar.get() == 0: # 0 = Individual Bowler Selection
+        if self.bowler_selection_type_intvar.get() == 0:  # 0 = Individual Bowler Selection
             return [self.bowlers[i] for i in bowler_idxs]
         
-        elif self.bowler_selection_type_intvar.get() == 1: # 1 = Team Bowler Selection
+        elif self.bowler_selection_type_intvar.get() == 1:  # 1 = Team Bowler Selection
             return [str(i + 1) for i in bowler_idxs]
         
-    def get_Primary_yaxis_Selections(self):
+    def get_Primary_yaxis_Selections(self, getIndexes=False):
         primary_yaxis_selections = self.pri_yaxis_lbox.curselection()
         
-        if len(primary_yaxis_selections)!=0:
-            primary_yaxis_idxs = [int(i) for i in primary_yaxis_selections] #@unusedvariable
+        if getIndexes == True:
+            return primary_yaxis_selections
+        
+        if len(primary_yaxis_selections) != 0:
+            primary_yaxis_idxs = [int(i) for i in primary_yaxis_selections]  # @unusedvariable
             return [self.primary_yaxis[i] for i in primary_yaxis_idxs]
         else:
             return ['None']
         
-    def get_speciality_plots_Selections(self):
+    def get_speciality_plots_Selections(self, getIndexes=False):
         
         try:
             speciality_plots_selections = self.speciality_plots_lbox.curselection()[0]
+            
+            if getIndexes == True:
+                return speciality_plots_selections
+            
             return self.speciality_plots[speciality_plots_selections]
+        except IndexError:
+            return 'None'
+        
+    def get_plots_Selections(self):
+        
+        try:
+            plots_selections = self.plots_lbox.curselection()[0]
+            return self.plots[plots_selections]
         except IndexError:
             return 'None'
         
     def database_new(self):
         self.statusmsg.set("Define New Database Connection\n\n\n\n")
         
-        temp_db_file = self.file_save(dialogtitle='Create New Database', ftype='db', 
-                                      fdescription='Database Files', 
+        temp_db_file = self.file_save(dialogtitle='Create New Database', ftype='db',
+                                      fdescription='Database Files',
                                       defalut_db_path=self.utils_directory)
         
         if temp_db_file == None:
@@ -443,9 +481,8 @@ class Window(tk.Frame):
             # The use of the None here is totally confusing
             # This should be implied as the JSON_Tools self object
             # However it throws an error when I don't put a "place holder" parameter here???
-            JSON_Tools.dump_Data_To_File(None, self.jsonfilepath, db_filepath = self.master.file,
-                                reports = self.saved_reports, plots=self.saved_plots)
-
+            JSON_Tools.dump_Data_To_File(None, self.jsonfilepath, db_filepath=self.master.file,
+                                reports=self.saved_reports, plots=self.saved_plots)
             
             # disconnect from current db then connect to selected db
             self.bowling_db.closeDBConnection()
@@ -461,8 +498,8 @@ class Window(tk.Frame):
             
     def database_connect(self):
         self.statusmsg.set("Define Database Connection\n\n\n\n")
-        temp_db_file = self.file_open(dialogtitle='Select Database Connection', ftype='db', 
-                                      fdescription='Database Files', 
+        temp_db_file = self.file_open(dialogtitle='Select Database Connection', ftype='db',
+                                      fdescription='Database Files',
                                       defalut_db_path=self.utils_directory)
         
         if temp_db_file == None:
@@ -475,8 +512,8 @@ class Window(tk.Frame):
             # The use of the None here is totally confusing
             # This should be implied as the JSON_Tools self object
             # However it throws an error when I don't put a "place holder" parameter here???
-            JSON_Tools.dump_Data_To_File(None, self.jsonfilepath, db_filepath = self.master.file,
-                                reports = self.saved_reports, plots=self.saved_plots)
+            JSON_Tools.dump_Data_To_File(None, self.jsonfilepath, db_filepath=self.master.file,
+                                reports=self.saved_reports, plots=self.saved_plots)
             
             # disconnect from current db then connect to selected db
             self.bowling_db.closeDBConnection()
@@ -500,35 +537,33 @@ class Window(tk.Frame):
         except AttributeError:
             self.statusmsg.set('No Database Connection Established\n\n\n\n')
     
-    
     def files_open(self, dialogtitle, ftype, fdescription, defalut_db_path):
-        f = filedialog.askopenfilenames(initialdir = defalut_db_path, 
-                                                            title = dialogtitle, filetypes=((fdescription, ftype),))
+        f = filedialog.askopenfilenames(initialdir=defalut_db_path,
+                                                            title=dialogtitle, filetypes=((fdescription, ftype),))
         return f
     
     def file_open(self, dialogtitle, ftype, fdescription, defalut_db_path):    
-        f = filedialog.askopenfilename(initialdir = defalut_db_path, 
-                                                            title = dialogtitle, filetypes=((fdescription, ftype),))
+        f = filedialog.askopenfilename(initialdir=defalut_db_path,
+                                                            title=dialogtitle, filetypes=((fdescription, ftype),))
         if f == None or f == '':
             return None
         else:
             return f
     
-    
     def file_save(self, dialogtitle, ftype, fdescription, defalut_db_path):
         
-        f = filedialog.asksaveasfilename(initialdir = defalut_db_path, 
-                                        title = dialogtitle, filetypes=((fdescription, '*.' + ftype),))
+        f = filedialog.asksaveasfilename(initialdir=defalut_db_path,
+                                        title=dialogtitle, filetypes=((fdescription, '*.' + ftype),))
         if f == None or f == '':
             return None
         elif f.split('.')[-1] == ftype:
             return f
         elif f.split('.')[-1] != ftype:
             return f + '.' + ftype
-        
     
     def _delete_window(self):
         self.bowling_db.closeDBConnection() 
+        plotter.closeplot()
         try:
             self.master.destroy()
         except:
@@ -543,28 +578,25 @@ class Window(tk.Frame):
             self.statusmsg.set('Invalid selection: Must select a single season league to load data.\n\n\n\n')
             return None
         
-        
         # Verify a date has been selected
         if self.calendar_selection == {}:
             self.statusmsg.set("Must define the data set date prior to loading bowling data.\n\n\n\n")
             return None
         
-        
         # Confirm with user that the date is correct
         long_date = str(self.calendar_selection['month_name']) + " " + str(self.calendar_selection['day_selected']) + ", " + str(self.calendar_selection['year_selected'])
         warningmessage = 'You have selected the following dataset date.\nDo you wish to proceed?\n\n{d}'.format(d=long_date)
-        MsgBox = tk.messagebox.askquestion('Confirm Data Set Date',warningmessage ,icon = 'warning')
+        MsgBox = tk.messagebox.askquestion('Confirm Data Set Date', warningmessage , icon='warning')
         if MsgBox == 'no':
             self.statusmsg.set("Action Aborted.\n\n\n\n")
             return None
         
-        
         # Get list of bowling csv files
-        csv_file_paths = self.files_open(dialogtitle='Select BowlerList & LeagueSummary csv Files', ftype='csv', 
-                                      fdescription='comma separated values', 
+        csv_file_paths = self.files_open(dialogtitle='Select BowlerList & LeagueSummary csv Files', ftype='csv',
+                                      fdescription='comma separated values',
                                       defalut_db_path=self.defaultsave_directory)
         
-        ## Verify that the selected csv files are BowlerList.csv & LeagueSummary.csv
+        # # Verify that the selected csv files are BowlerList.csv & LeagueSummary.csv
         if csv_file_paths == '':
             self.statusmsg.set("No csv files selected.  Action Aborted.\n\n\n\n")
             return None
@@ -589,24 +621,22 @@ class Window(tk.Frame):
             self.statusmsg.set('One or more of the selected files are invalid.  Must select BowlerList.csv & LeagueSummary.csv only.\n\n\n\n')
             return None
         
-        
-        ## Open TeamPoints.xlsx file
-        xlsx_file = self.file_open(dialogtitle='Select TeamPoints.xlsx file', ftype='xlsx', 
-                                      fdescription='Excel File', 
+        # # Open TeamPoints.xlsx file
+        xlsx_file = self.file_open(dialogtitle='Select TeamPoints.xlsx file', ftype='xlsx',
+                                      fdescription='Excel File',
                                       defalut_db_path=self.defaultsave_directory)
         HasTeamPointsData = True
         
         if xlsx_file == None:
             warningmessage = 'Are you sure you wish to load this\ndataset without team points included?'
-            MsgBox = tk.messagebox.askquestion('Confirm: No Team Points Included',warningmessage ,icon = 'warning')
+            MsgBox = tk.messagebox.askquestion('Confirm: No Team Points Included', warningmessage , icon='warning')
             if MsgBox == 'no':
                 self.statusmsg.set("Action Aborted.\n\n\n\n")
                 return None
             else:
                 HasTeamPointsData = False
         
-        
-        ### Selection Validation Complete Begin Extraction & Cleaning
+        # ## Selection Validation Complete Begin Extraction & Cleaning
         dataset_date = self.convertcalendarselection()
         
         # Open and clean team points data
@@ -621,12 +651,11 @@ class Window(tk.Frame):
             teampoints_df = pd.read_excel(xlsx_file)
             teampoints_df = self.bowling_db.clean_dfMatchPoints(teampoints_df, dataset_date)
         
-        ## read both csv files into dataframes
+        # # read both csv files into dataframes
         BowlerList_df = pd.read_csv(csv_file_paths[0])
         LeagueSummary_df = pd.read_csv(csv_file_paths[1])
         
-        
-        ### Combine dataframaes
+        # ## Combine dataframaes
         
         # Drop redundant column and rename duplicate columns & change Name to Bowler
         BowlerList_df.rename(columns={'AVG': 'Avg_Total', 'Name': 'Bowler', 'TM': 'Team',
@@ -658,11 +687,11 @@ class Window(tk.Frame):
         
         # Create new columns
         bowling_df['Date'] = dataset_date
-        bowling_df['Bowler_Date'] =  bowling_df['Bowler'] + "_"  + bowling_df['Date']
+        bowling_df['Bowler_Date'] = bowling_df['Bowler'] + "_" + bowling_df['Date']
         bowling_df['Avg_Day'] = bowling_df.apply(self.calcAvgDay, axis=1)
         bowling_df['Season_League'] = seasonleague_selections[0]
         
-        bowling_df.fillna("''", inplace=True) # These values will be converted to NULL prior to loading to SQL
+        bowling_df.fillna("''", inplace=True)  # These values will be converted to NULL prior to loading to SQL
         self.bowling_db.load_bowlingdata(bowling_df)
         self.update_bowlers_lbox()
         
@@ -684,10 +713,12 @@ class Window(tk.Frame):
         else:
             return 0
     
-    def update_canvas(self, fig):
+    def update_canvas(self, fig, isStartUp=False):
+        if isStartUp == False:
+            plotter.closeplot()
         canvas = FigureCanvasTkAgg(fig, self.contentframe)
         canvas.show()
-        canvas.get_tk_widget().grid(column=0, row=0, rowspan=11, sticky=(tk.N,tk.S,tk.E,tk.W))
+        canvas.get_tk_widget().grid(column=0, row=0, rowspan=11, sticky=(tk.N, tk.S, tk.E, tk.W))
     
     def add_season_league(self):
         # Get user entered season league value
@@ -721,46 +752,54 @@ class Window(tk.Frame):
     def export_csv(self):
         # check the list box selections
         # Verify that at least one is selected for season league, bowler, and primary yaxis
-        season_leagues = self.get_SeasonLeague_Selections()
-        bowlers = self.get_Bowler_Selections()
-        individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
-        primary_yaxis_fields = self.get_Primary_yaxis_Selections()
+        self.season_leagues_selections = self.get_SeasonLeague_Selections()
+        self.bowlers_selections = self.get_Bowler_Selections()
+        self.individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
+        self.primary_yaxis_fields = self.get_Primary_yaxis_Selections()
         
-        if season_leagues == ['None'] or bowlers == ['None'] or primary_yaxis_fields == ['None']:
+        if self.season_leagues_selections == ['None'] or self.bowlers_selections == ['None'] or self.primary_yaxis_fields == ['None']:
             self.statusmsg.set('Invalid selection: Must select at least a single season league, bowler, and primary y-axis field to create a plot.\n\n\n\n')
             return None
         
-        temp_csv_file = self.file_save(dialogtitle='Export Selected Data to Text Format', ftype='csv', 
-                                      fdescription='Text: Comma Separated Values', 
+        temp_csv_file = self.file_save(dialogtitle='Export Selected Data to Text Format', ftype='csv',
+                                      fdescription='Text: Comma Separated Values',
                                       defalut_db_path=self.utils_directory)
 
-        bowling_df = self.bowling_db.csvexport_query(primary_yaxis_fields, bowlers, individualbowlerselection, season_leagues)
+        bowling_df = self.bowling_db.csvexport_query(self.primary_yaxis_fields, self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
         
         bowling_df.to_csv(temp_csv_file, index=False)
     
-    def preview_plot(self):
+    def preview_plot(self, IsSavedPlot=False):
         
         # Get all the user input values
-        season_leagues = self.get_SeasonLeague_Selections()
-        bowlers = self.get_Bowler_Selections()
-        individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
-        primary_yaxis_fields = self.get_Primary_yaxis_Selections()
-        sp = self.get_speciality_plots_Selections()
-        
+        if IsSavedPlot == False:
+            self.season_leagues_selections = self.get_SeasonLeague_Selections()
+            self.bowlers_selections = self.get_Bowler_Selections()
+            self.individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
+            self.primary_yaxis_fields = self.get_Primary_yaxis_Selections()
+            self.sp = self.get_speciality_plots_Selections()
+        elif IsSavedPlot == True:
+            plot = self.get_plots_Selections()
+            self.season_leagues_selections = self.saved_plots[plot]['season_leagues_selections']
+            self.bowlers_selections = self.saved_plots[plot]['bowlers_selections']
+            self.individualbowlerselection = self.saved_plots[plot]['individualbowlerselection'] 
+            self.primary_yaxis_fields = self.saved_plots[plot]['primary_yaxis_fields']
+            self.sp = self.saved_plots[plot]['sp']
+            
         # check the list box selections and
         # Verify that at least one is selected for season league, bowler, and primary yaxis
         # Also, check if a speciality plot has been selected
         
-        if sp != 'None' and season_leagues != ['None'] and bowlers != ['None']:
-            self.speciality_plots_method_dict[sp]()
+        if self.sp != 'None' and self.season_leagues_selections != ['None'] and self.bowlers_selections != ['None']:
+            self.speciality_plots_method_dict[self.sp]()
             return None
-        elif season_leagues == ['None'] or bowlers == ['None'] or primary_yaxis_fields == ['None']:
+        elif self.season_leagues_selections == ['None'] or self.bowlers_selections == ['None'] or self.primary_yaxis_fields == ['None']:
             self.statusmsg.set('Invalid selection: Must select at least a single season league, bowler, and primary y-axis field to create a plot.\n\n\n\n')
             return None
         
         # Query DB based upon the user selections, create plot, then update canvas with new plot
-        bowling_df = self.bowling_db.previewplot_query(primary_yaxis_fields, bowlers, individualbowlerselection, season_leagues)
-        self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, primary_yaxis_fields, bowlers, individualbowlerselection, season_leagues)) 
+        bowling_df = self.bowling_db.previewplot_query(self.primary_yaxis_fields, self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
+        self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, self.primary_yaxis_fields, self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)) 
 
         print(bowling_df)
         self.standardstatusmessage()
@@ -768,81 +807,77 @@ class Window(tk.Frame):
     def speciality_plot_SeriesScratch(self):
         
         # Get the relevant user input values
-        season_leagues = self.get_SeasonLeague_Selections()
-        bowlers = self.get_Bowler_Selections()
-        individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
+#         season_leagues = self.get_SeasonLeague_Selections()
+#         bowlers = self.get_Bowler_Selections()
+#         individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
         
         # Query DB based upon the user selections, create plot, then update canvas with new plot
-        bowling_df = self.bowling_db.seriesScratch_query(['SS', 'Avg_Total'], bowlers, individualbowlerselection, season_leagues)
-        self.update_canvas(plotter.highlight_AvePlot(bowling_df, ['SS', 'Avg_Total'], bowlers, individualbowlerselection, season_leagues))
+        bowling_df = self.bowling_db.seriesScratch_query(['SS', 'Avg_Total'], self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
+        self.update_canvas(plotter.highlight_AvePlot(bowling_df, ['SS', 'Avg_Total'], self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections))
         
         print(bowling_df)
-    
     
     def speciality_plot_CumulativeMatchPoints(self):
         
         # Get the relevant user input values
-        season_leagues = self.get_SeasonLeague_Selections()
-        bowlers = self.get_Bowler_Selections()
-        individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
+#         season_leagues = self.get_SeasonLeague_Selections()
+#         bowlers = self.get_Bowler_Selections()
+#         individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
         
         # Query DB based upon the user selections, create plot, then update canvas with new plot
-        bowling_df = self.bowling_db.matchPointsCumSum_query(bowlers, individualbowlerselection, season_leagues)
-        self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, ['Cumulative_Match_Points'], bowlers, individualbowlerselection, season_leagues))
+        bowling_df = self.bowling_db.matchPointsCumSum_query(self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
+        self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, ['Cumulative_Match_Points'], self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections))
         print(bowling_df)
         
     def speciality_plot_GameComparison(self):
         
         # Get all the user input values
-        season_leagues = self.get_SeasonLeague_Selections()
-        bowlers = self.get_Bowler_Selections()
-        individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
+#         season_leagues = self.get_SeasonLeague_Selections()
+#         bowlers = self.get_Bowler_Selections()
+#         individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
         
         # Query DB based upon the user selections, create plot, then update canvas with new plot
-        bowling_df = self.bowling_db.GameComparison_query(bowlers, individualbowlerselection, season_leagues)
-        self.update_canvas(plotter.highlight_AvePlot(bowling_df, ['Gm1', 'Gm2', 'Gm3', 'Avg_Before'], bowlers, individualbowlerselection, season_leagues))
+        bowling_df = self.bowling_db.GameComparison_query(self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
+        self.update_canvas(plotter.highlight_AvePlot(bowling_df, ['Gm1', 'Gm2', 'Gm3', 'Avg_Before'], self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections))
         
         print(bowling_df)
-        
 
     def speciality_plot_SummaryTable(self):
         # Get all the user input values
-        season_leagues = self.get_SeasonLeague_Selections()
-        bowlers = self.get_Bowler_Selections()
-        individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
+#         season_leagues = self.get_SeasonLeague_Selections()
+#         bowlers = self.get_Bowler_Selections()
+#         individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
         
         # Query DB based upon the user selections, create plot, then update canvas with new plot
-        bowling_df = self.bowling_db.summaryTable_query(bowlers, individualbowlerselection, season_leagues)
-        
-        print(bowling_df)
-
+        bowling_df = self.bowling_db.summaryTable_query(self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
         self.update_canvas(plotter.summaryTablePlot(bowling_df))
         
+        print(bowling_df)
         
     def speciality_plot_TeamHandycapTotal(self):
         
         # Get the relevant user input values
-        season_leagues = self.get_SeasonLeague_Selections()
-        bowlers = self.get_Bowler_Selections()
-        individualbowlerselection = self.bowler_selection_type_intvar.get() == 0 # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
+#         season_leagues = self.get_SeasonLeague_Selections()
+#         bowlers = self.get_Bowler_Selections()
+#         individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
         
         # Verify that on the bowler list box that a team(s) selection has been
         # made not an individual bowler(s) selection
-        if individualbowlerselection == True:
+        if self.individualbowlerselection == True:
             self.statusmsg.set('Invalid selection: Must make a team selection and not an individual bowler selection.\n\n\n\n')
             return None
         
         # Query DB based upon the user selections, create plot, then update canvas with new plot
-        bowling_df = self.bowling_db.teamHandicap_query(bowlers, season_leagues)
+        bowling_df = self.bowling_db.teamHandicap_query(self.bowlers_selections, self.season_leagues_selections)
         
         # Changing this column name makes it cooperate with plot_TeamHandycapTotal()
         bowling_df['Bowler'] = bowling_df.apply(self.false_bowler_column_for_TeamHandycapTotal, axis=1)
         
         # If team 22 is included, remove week 1 because we only had 3 of 5 bowlers
-        if '22' in bowlers:
+        if '22' in self.bowlers_selections:
             bowling_df = bowling_df[bowling_df['Days'] != 0]
         
-        self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, ['Team_Handicap'], bowlers, individualbowlerselection, season_leagues))
+        self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, ['Team_Handicap'], self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections))
         print(bowling_df)
     
     def false_bowler_column_for_TeamHandycapTotal(self, row):
@@ -850,16 +885,99 @@ class Window(tk.Frame):
         if row['Team'] < 10:
             return 'Team 0' + str(row['Team'])
         else:
-            return 'Team ' + str(row['Team'])
+            return 'Team ' + str(row['Team'])    
     
+    def addplot(self):
+        
+        # Get all the user input indexes (not values)
+        self.season_leagues_selections = self.get_SeasonLeague_Selections()
+        self.bowlers_selections = self.get_Bowler_Selections()
+        self.individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection 
+        self.primary_yaxis_fields = self.get_Primary_yaxis_Selections()
+        self.sp = self.get_speciality_plots_Selections()
+        
+        self.w = popupWindow(self.master)
+        self.master.wait_window(self.w.top)
+        try:
+            plot_name = self.w.value
+        except AttributeError: # When pop up window is cancelled and thus has no value.
+            self.statusmsg.set("Action Aborted.\n\n\n\n")
+            return
+        
+        if plot_name in self.plots:
+            warningmessage = 'This report name already exists,\ndo you wish to overwrite?'
+            MsgBox = tk.messagebox.askquestion('Overwrite Warning', warningmessage , icon='warning')
+            if MsgBox == 'no':
+                self.statusmsg.set("Action Aborted.\n\n\n\n")
+                return None
+        
+        self.update_plots_lbox(plot_name)
+        self.saved_plots[plot_name] = {'season_leagues_selections': self.season_leagues_selections,
+                                 'bowlers_selections': self.bowlers_selections,
+                                 'individualbowlerselection': self.individualbowlerselection,
+                                 'primary_yaxis_fields': self.primary_yaxis_fields,
+                                 'sp': self.sp}
+        
+        print(self.saved_plots)
+        
+        # Update json file with new plot information
+        # The use of the None here is totally confusing
+        # This should be implied as the JSON_Tools self object
+        # However it throws an error when I don't put a "place holder" parameter here???
+        JSON_Tools.dump_Data_To_File(None, self.jsonfilepath, db_filepath=self.master.file,
+                            reports=self.saved_reports, plots=self.saved_plots)
+        
+    def removeplot(self):
+        
+        selected_plot = self.get_plots_Selections()
+        
+        if selected_plot == 'None':
+            self.statusmsg.set("Action Aborted: No plots selected.\n\n\n\n")
+            return None
+        
+        warningmessage = 'Are you sure you wish to delete the selected plot?\n\"{p}"'.format(p=selected_plot)
+        MsgBox = tk.messagebox.askquestion('Delete Warning', warningmessage , icon='warning')
+        if MsgBox == 'no':
+            self.statusmsg.set("Action Aborted.\n\n\n\n")
+            return None
+        
+        # Remove selected plot
+        self.update_plots_lbox(selected_plot, True)
+        
+        # Update json file with new plot information
+        # The use of the None here is totally confusing
+        # This should be implied as the JSON_Tools self object
+        # However it throws an error when I don't put a "place holder" parameter here???
+        JSON_Tools.dump_Data_To_File(None, self.jsonfilepath, db_filepath=self.master.file,
+                            reports=self.saved_reports, plots=self.saved_plots)
+        
+        self.statusmsg.set('Plot: "{p}" deleted.\n\n\n\n'.format(p=selected_plot))
+
     def temp(self):
         print("Oh, hello there")
         
     def lboxtemp(self, event=None):
         print('Temp Shit')
+
+
+class popupWindow(object):
+
+    def __init__(self, master):
+        top = self.top = tk.Toplevel(master)
+        self.l = tk.Label(top, text="Plot Name")
+        self.l.pack()
+        self.e = tk.Entry(top)
+        self.e.pack()
+        self.b = tk.Button(top, text='Ok', command=self.cleanup)
+        self.b.pack()
+
+    def cleanup(self):
+        self.value = self.e.get()
+        self.top.destroy()
     
     
 class Calendar:
+
     def __init__(self, parent, values):
         self.values = values
         self.parent = parent
@@ -877,7 +995,7 @@ class Calendar:
     def clear(self):
         for w in self.wid[:]:
             w.grid_forget()
-            #w.destroy()
+            # w.destroy()
             self.wid.remove(w)
      
     def go_prev(self):
@@ -886,7 +1004,7 @@ class Calendar:
         else:
             self.month = 12
             self.year -= 1
-        #self.selected = (self.month, self.year)
+        # self.selected = (self.month, self.year)
         self.clear()
         self.setup(self.year, self.month)
  
@@ -897,7 +1015,7 @@ class Calendar:
             self.month = 1
             self.year += 1
          
-        #self.selected = (self.month, self.year)
+        # self.selected = (self.month, self.year)
         self.clear()
         self.setup(self.year, self.month)
          
@@ -907,7 +1025,7 @@ class Calendar:
         self.year_selected = self.year
         self.day_name = name
          
-        #data
+        # data
         self.values['day_selected'] = day
         self.values['month_selected'] = self.month
         self.values['year_selected'] = self.year
@@ -939,8 +1057,8 @@ class Calendar:
         for w, week in enumerate(self.cal.monthdayscalendar(y, m), 2):
             for d, day in enumerate(week):
                 if day:
-                    #print(calendar.day_name[day])
-                    b = tk.Button(self.parent, width=1, text=day, command=lambda day=day:self.selection(day, calendar.day_name[(day-1) % 7]))
+                    # print(calendar.day_name[day])
+                    b = tk.Button(self.parent, width=1, text=day, command=lambda day=day:self.selection(day, calendar.day_name[(day - 1) % 7]))
                     self.wid.append(b)
                     b.grid(row=w, column=d)
                      
@@ -956,12 +1074,13 @@ class Calendar:
     def kill_and_save(self):
         self.parent.destroy()
 
+
 if __name__ == '__main__':
 
     # Initialize ProgramData directory & json file, if either doesn't exist then create the missing item
     # Note, the JSON file contains db file path and all other instance data.  
     # If JSON file not found then the default path will be used
-    utils_directory=os.path.join('C:\\', 'ProgramData', 'BowlingData')
+    utils_directory = os.path.join('C:\\', 'ProgramData', 'BowlingData')
     jsonfilepath = os.path.join(utils_directory, 'bowlinginstancedata.txt')
     
     # If default ProgramData directory is not found then create it
@@ -971,9 +1090,9 @@ if __name__ == '__main__':
     
     if os.path.exists(jsonfilepath) == False:
         db_filepath = os.path.join(utils_directory, 'bowling.db') 
-        JSON_Tools().dump_Data_To_File(jsonfilepath, 
-                                       db_filepath = os.path.join(utils_directory, 'bowling.db'),
-                                       reports = {}, plots={})
+        JSON_Tools().dump_Data_To_File(jsonfilepath,
+                                       db_filepath=os.path.join(utils_directory, 'bowling.db'),
+                                       reports={}, plots={})
         
     bowlinginstancedata = JSON_Tools().Load_Data(jsonfilepath)
 

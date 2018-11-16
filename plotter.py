@@ -68,6 +68,8 @@ def starting_plot():
     return fig
 
 def summaryTablePlot(df):
+    # closeplot()
+    
     bowlers = sorted(df['Bowler'].unique().tolist())
     season_leagues = sorted(df['Season_league'].unique().tolist())
     
@@ -133,6 +135,8 @@ def summaryTablePlot(df):
 
 
 def highlight_AvePlot(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues):
+    # closeplot()
+    
     # Generate plot labels/titles
     plot_title, plotlabels_lst = plotlabels(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues)
     plot = 0
@@ -193,6 +197,8 @@ def highlight_AvePlot(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSele
     return fig
 
 def custom_plot_primaryaxisonly(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues):
+    # closeplot()
+    
     # Generate plot labels/titles
     plot_title, plotlabels_lst = plotlabels(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues)
     plot = 0
