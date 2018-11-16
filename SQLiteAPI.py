@@ -179,6 +179,7 @@ class BowlingDB():
 	
 	def seriesScratch_query(self, columns, bowler, isIndividualBowlerSelection, seasonleagues):
 		df = self.previewplot_query(columns, bowler, isIndividualBowlerSelection, seasonleagues)
+		df['Avg_Total'] = df['Avg_Total']  * 3
 		
 		return df
 	
