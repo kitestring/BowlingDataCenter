@@ -57,10 +57,11 @@ class Window(tk.Frame):
                                              "Series Scratch": self.speciality_plot_SeriesScratch}
         self.speciality_plots_strvar = tk.StringVar(value=self.speciality_plots)
         
-        self.plots = sorted(self.saved_plots.keys())
+        self.plots = self.saved_plots['KeyOrder'][:] # List that retains the order each items (plots) was added to the saved_plots dictionary
         self.plots_strvar = tk.StringVar(value=self.plots)
         
-        self.reports = []
+        
+        self.reports = sorted(self.saved_reports.keys())
         self.reports_strvar = tk.StringVar(value=self.reports)
         
         self.statusmsg = tk.StringVar()
@@ -103,6 +104,7 @@ class Window(tk.Frame):
         plots_lbl = tk.Label(self.contentframe, text='Plot Queue', anchor=tk.W)
         addplot_btn = tk.Button(self.contentframe, text='Add', command=self.addplot)
         removeplot_btn = tk.Button(self.contentframe, text='Remove', command=self.removeplot)
+        clear_btn = tk.Button(self.contentframe, text='Clear', command=self.clearplotqueue)
         
         # # Create bowler Widget Group
         self.bowlers_lbox = tk.Listbox(self.contentframe, listvariable=self.bowlers_strvar, height=4, width=25,
@@ -121,8 +123,8 @@ class Window(tk.Frame):
         self.reports_lbox = tk.Listbox(self.contentframe, listvariable=self.reports_strvar, height=4, width=25,
                                  exportselection=tk.FALSE, selectmode=tk.EXTENDED, name="reports")
         reports_lbl = tk.Label(self.contentframe, text='Saved Reports', anchor=tk.W)
-        savereport_btn = tk.Button(self.contentframe, text='Save', command=self.temp)
-        removeremove_btn = tk.Button(self.contentframe, text='Remove', command=self.temp)
+        savereport_btn = tk.Button(self.contentframe, text='Save', command=self.savereport)
+        removeremove_btn = tk.Button(self.contentframe, text='Remove', command=self.removereport)
         
         # # Final Buttons row Widget Group
         preview_btn = tk.Button(self.contentframe, text='Preview', command=self.preview_plot)
@@ -146,6 +148,7 @@ class Window(tk.Frame):
         self.plots_lbox.grid(column=1, row=7, sticky=(tk.S, tk.E, tk.W))
         addplot_btn.grid(column=1, row=8, sticky=(tk.S, tk.W))
         removeplot_btn.grid(column=1, row=8, padx=34, sticky=(tk.S, tk.W))
+        clear_btn.grid(column=1, row=8, padx=89, columnspan=3, sticky=(tk.S, tk.W))
         
         bowlers_lbl.grid(column=3, row=0, sticky=(tk.S, tk.W))
         self.bowlers_lbox.grid(column=3, row=1, sticky=(tk.S, tk.E, tk.W))
@@ -235,7 +238,7 @@ class Window(tk.Frame):
         self.plots_lbox.bind('<<ListboxSelect>>', self.select_plots_lbox)
         self.bowlers_lbox.bind('<<ListboxSelect>>', self.select_bowler_lbox)
         self.speciality_plots_lbox.bind('<<ListboxSelect>>', self.select_speciality_plots_lbox) 
-        self.reports_lbox.bind('<<ListboxSelect>>', self.lboxtemp)
+        self.reports_lbox.bind('<<ListboxSelect>>', self.select_reports_lbox)
         
         # # Initialize the list boxes, note the bowler list box
         # will not be initialized because it is dependent on the 
@@ -243,7 +246,7 @@ class Window(tk.Frame):
         self.update_seasonleague_lbox()
         self.update_primary_yaxis_lbox()
         self.update_plots_lbox(None)
-        self.update_reports_lbox()
+        self.update_reports_lbox(None)
         self.update_speciality_plots()
         
         self.statusmsg.set("\n\n\n\n")
@@ -277,10 +280,18 @@ class Window(tk.Frame):
         self.standardstatusmessage()
         
     def select_plots_lbox(self, e):
-        # plot = self.get_plots_Selections()
-        # print('plot: ', plot)
-        # print(self.saved_plots[plot])
         self.preview_plot(True)
+        
+    def select_reports_lbox(self, e):
+        
+        # Get selected report and load each of the corresponding saved plots
+        selected_report = self.get_reports_Selections()
+        self.saved_plots = self.saved_reports[selected_report]
+        self.plots = self.saved_plots['KeyOrder'][:]
+        
+        self.plots_lbox.selection_clear(0, tk.END)
+        self.plots_strvar.set(value=self.plots)
+        self.update_plots_lbox(None)
         
     def select_bowler_RdoBtn(self):
         # 0 = Individual Bowler Selection
@@ -379,28 +390,44 @@ class Window(tk.Frame):
         for i in range(0, len(self.speciality_plots), 2):
                 self.speciality_plots_lbox.itemconfigure(i, background='#f0f0ff')
     
-    def update_plots_lbox(self, newplot, remove_newplot=False):
-        
+    def update_plots_lbox(self, selected_plot, remove_newplot=False):
         
         if remove_newplot == False:
             # Add new plot to the plots_lbox
-            if newplot != None:
-                self.plots.append(newplot)
-                self.plots = sorted(self.plots)
+            if selected_plot != None: # Upon initialization selected_plot == None or if loading a saved report
+                self.plots.append(selected_plot)
                 self.plots_strvar.set(value=self.plots)
                 
         elif remove_newplot == True:
             self.plots_lbox.selection_clear(0, tk.END)
-            self.plots.remove(newplot)
-            self.saved_plots.pop(newplot, None)
+            self.plots.remove(selected_plot)
             self.plots_strvar.set(value=self.plots)
         
         # set the row background colors to alternate for the sake of readability
         for i in range(0, len(self.plots), 2):
-                self.plots_lbox.itemconfigure(i, background='#f0f0ff')
+            self.plots_lbox.itemconfigure(i, background='#f0f0ff')
     
-    def update_reports_lbox(self):
-        pass
+    def update_reports_lbox(self, selected_report, remove_selected_report=False):
+        
+        if remove_selected_report==False:
+            # Add new plot to the plots_lbox
+            if selected_report != None: # Upon initialization selected_report == None
+                self.reports.append(selected_report)
+                self.reports = sorted(self.reports)
+               
+                self.reports_lbox.selection_clear(0, tk.END)
+                self.reports_strvar.set(value=self.reports)
+        
+        if remove_selected_report == True:
+            self.reports_lbox.selection_clear(0, tk.END)
+            self.reports.remove(selected_report)
+            self.reports_strvar.set(value=self.reports)
+        
+        # set the row background colors to alternate for the sake of readability
+        for i in range(0, len(self.reports), 2):
+                self.reports_lbox.itemconfigure(i, background='#f0f0ff')
+
+        
         
     def get_SeasonLeague_Selections(self, getIndexes=False):
         seasonleague_selections = self.seasonleague_lbox.curselection()
@@ -460,6 +487,14 @@ class Window(tk.Frame):
         try:
             plots_selections = self.plots_lbox.curselection()[0]
             return self.plots[plots_selections]
+        except IndexError:
+            return 'None'
+        
+    def get_reports_Selections(self):
+        
+        try:
+            report_selection = self.reports_lbox.curselection()[0]
+            return self.reports[report_selection]
         except IndexError:
             return 'None'
         
@@ -896,7 +931,9 @@ class Window(tk.Frame):
         self.primary_yaxis_fields = self.get_Primary_yaxis_Selections()
         self.sp = self.get_speciality_plots_Selections()
         
-        self.w = popupWindow(self.master)
+        
+        # Prompt the user to name the saved plot
+        self.w = popupWindow(self.master, "Plot Name")
         self.master.wait_window(self.w.top)
         try:
             plot_name = self.w.value
@@ -904,6 +941,7 @@ class Window(tk.Frame):
             self.statusmsg.set("Action Aborted.\n\n\n\n")
             return
         
+        # Overwrite check/warning
         if plot_name in self.plots:
             warningmessage = 'This report name already exists,\ndo you wish to overwrite?'
             MsgBox = tk.messagebox.askquestion('Overwrite Warning', warningmessage , icon='warning')
@@ -911,7 +949,11 @@ class Window(tk.Frame):
                 self.statusmsg.set("Action Aborted.\n\n\n\n")
                 return None
         
+        
+        # Add the user defined plot name to plots lstbox and
+        # add the user defined parameters to the save plots dictionary
         self.update_plots_lbox(plot_name)
+        self.saved_plots['KeyOrder'] = self.plots[:]
         self.saved_plots[plot_name] = {'season_leagues_selections': self.season_leagues_selections,
                                  'bowlers_selections': self.bowlers_selections,
                                  'individualbowlerselection': self.individualbowlerselection,
@@ -942,7 +984,9 @@ class Window(tk.Frame):
             return None
         
         # Remove selected plot
+        self.saved_plots.pop(selected_plot, None)
         self.update_plots_lbox(selected_plot, True)
+        self.saved_plots['KeyOrder'] = self.plots[:]
         
         # Update json file with new plot information
         # The use of the None here is totally confusing
@@ -953,6 +997,91 @@ class Window(tk.Frame):
         
         self.statusmsg.set('Plot: "{p}" deleted.\n\n\n\n'.format(p=selected_plot))
 
+    def clearplotqueue(self):
+        
+        # get a copy of the list containing each plot name
+        all_plots = self.plots[:]
+        
+        # Iterate through each plot name, removing each from the self.plot_lstbox
+        for p in all_plots:
+            self.update_plots_lbox(p, True)
+        
+        
+        # Reinitialize the self.saved_plots dictionary
+        
+        self.saved_plots = {}
+        self.saved_plots['KeyOrder'] = []
+            
+        # Update json file with new plot information
+        # The use of the None here is totally confusing
+        # This should be implied as the JSON_Tools self object
+        # However it throws an error when I don't put a "place holder" parameter here???
+        JSON_Tools.dump_Data_To_File(None, self.jsonfilepath, db_filepath=self.master.file,
+                            reports=self.saved_reports, plots=self.saved_plots)
+        
+        self.statusmsg.set('Plot Queue Cleared.\n\n\n\n')
+        
+        
+    def savereport(self):
+        
+        # Prompt the user to name the saved report
+        self.w = popupWindow(self.master, "Report Name")
+        self.master.wait_window(self.w.top)
+        try:
+            report_name = self.w.value
+        except AttributeError: # When pop up window is cancelled and thus has no value.
+            self.statusmsg.set("Action Aborted.\n\n\n\n")
+            return
+        
+        # Overwrite check/warning
+        if report_name in self.plots:
+            warningmessage = 'This report name already exists,\ndo you wish to overwrite?'
+            MsgBox = tk.messagebox.askquestion('Overwrite Warning', warningmessage , icon='warning')
+            if MsgBox == 'no':
+                self.statusmsg.set("Action Aborted.\n\n\n\n")
+                return None
+            
+        # Add the user defined plot name to plots lstbox and
+        # add the user defined parameters to the save plots dictionary
+        self.update_reports_lbox(report_name)
+        self.saved_reports[report_name] = self.saved_plots
+        
+        
+        # Update json file with new plot information
+        # The use of the None here is totally confusing
+        # This should be implied as the JSON_Tools self object
+        # However it throws an error when I don't put a "place holder" parameter here???
+        JSON_Tools.dump_Data_To_File(None, self.jsonfilepath, db_filepath=self.master.file,
+                            reports=self.saved_reports, plots=self.saved_plots) 
+        
+        
+    def removereport(self):
+        selected_report = self.get_reports_Selections()
+        
+        if selected_report == 'None':
+            self.statusmsg.set("Action Aborted: No report selected.\n\n\n\n")
+            return None
+        
+        warningmessage = 'Are you sure you wish to delete the selected report?\n\"{p}"'.format(p=selected_report)
+        MsgBox = tk.messagebox.askquestion('Delete Warning', warningmessage , icon='warning')
+        if MsgBox == 'no':
+            self.statusmsg.set("Action Aborted.\n\n\n\n")
+            return None
+        
+        # Remove selected report
+        self.saved_reports.pop(selected_report, None)
+        self.update_reports_lbox(selected_report=selected_report, remove_selected_report=True)
+        
+        # Update json file with new plot information
+        # The use of the None here is totally confusing
+        # This should be implied as the JSON_Tools self object
+        # However it throws an error when I don't put a "place holder" parameter here???
+        JSON_Tools.dump_Data_To_File(None, self.jsonfilepath, db_filepath=self.master.file,
+                            reports=self.saved_reports, plots=self.saved_plots)
+        
+        self.statusmsg.set('Report: "{p}" deleted.\n\n\n\n'.format(p=selected_report))
+    
+        
     def temp(self):
         print("Oh, hello there")
         
@@ -962,9 +1091,9 @@ class Window(tk.Frame):
 
 class popupWindow(object):
 
-    def __init__(self, master):
+    def __init__(self, master, popup_text):
         top = self.top = tk.Toplevel(master)
-        self.l = tk.Label(top, text="Plot Name")
+        self.l = tk.Label(top, text=popup_text)
         self.l.pack()
         self.e = tk.Entry(top)
         self.e.pack()
@@ -1081,7 +1210,7 @@ if __name__ == '__main__':
     # Note, the JSON file contains db file path and all other instance data.  
     # If JSON file not found then the default path will be used
     utils_directory = os.path.join('C:\\', 'ProgramData', 'BowlingData')
-    jsonfilepath = os.path.join(utils_directory, 'bowlinginstancedata.txt')
+    jsonfilepath = os.path.join(utils_directory, 'bowlinginstancedata_v2.txt')
     
     # If default ProgramData directory is not found then create it
     # and a new db will be created in the default DB location. 
@@ -1092,7 +1221,7 @@ if __name__ == '__main__':
         db_filepath = os.path.join(utils_directory, 'bowling.db') 
         JSON_Tools().dump_Data_To_File(jsonfilepath,
                                        db_filepath=os.path.join(utils_directory, 'bowling.db'),
-                                       reports={}, plots={})
+                                       reports={}, plots={'KeyOrder':[]})
         
     bowlinginstancedata = JSON_Tools().Load_Data(jsonfilepath)
 

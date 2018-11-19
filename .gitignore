@@ -8,6 +8,7 @@ jsonAPI_v1.py
 plotter_v1.py
 reportbuilder_v1.py
 SQLiteAPI_v1.py
+loadOldData.py
 
 # Executables
 *.swf

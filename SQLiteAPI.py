@@ -140,11 +140,16 @@ class BowlingDB():
 		seasonleagues = df['Season_League'].unique().tolist()
 		season_league_sliced_df = []
 		
+		print(seasonleagues)
+		
 		for i, sl in enumerate(seasonleagues):
 			season_league_sliced_df.append(df[df['Season_League'] == sl].copy()) # slice df for current season league
 			sql_statement = """SELECT MIN(Date) From Bowling Where Season_League = '{s}';""".format(s=sl) # Get starting date for season league
 			result = pd.read_sql_query(sql_statement, self.conn)
 			startdate = result['MIN(Date)'].tolist()[0]
+			
+			print(startdate)
+			
 			season_league_sliced_df[i]['Days'] = season_league_sliced_df[i].apply(self.DayDelta, args=(startdate,), axis=1) # Apply number of days since season league start date
 		
 		df = pd.concat(season_league_sliced_df) # recombine sliced dataframes
@@ -370,6 +375,8 @@ class BowlingDB():
 			Date ASC;""".format(b=bwl, s=sl)
 		
 		df = pd.read_sql_query(sql_statement, self.conn)
+		print(sql_statement)
+		print(df)
 		
 		# Create Days & Cumulative_Match_Points Columns
 		df['Days'] = self.getDaysSeries(df.copy())
