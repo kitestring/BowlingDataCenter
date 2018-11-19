@@ -9,6 +9,7 @@ import pandas as pd
 import calendar
 import datetime
 import numpy as np
+from subprocess import check_output
 
 import plotter  # @unresolvedimport
 from jsonAPI import JSON_Tools  # @unresolvedimport
@@ -128,7 +129,7 @@ class Window(tk.Frame):
         
         # # Final Buttons row Widget Group
         preview_btn = tk.Button(self.contentframe, text='Preview', command=self.preview_plot)
-        buildreport_btn = tk.Button(self.contentframe, text='Build Report', command=self.temp)
+        buildreport_btn = tk.Button(self.contentframe, text='Build Report', command=self.buildreport)
         export_btn = tk.Button(self.contentframe, text='Export csv', command=self.export_csv)
         
         # Status message output
@@ -841,11 +842,6 @@ class Window(tk.Frame):
     
     def speciality_plot_SeriesScratch(self):
         
-        # Get the relevant user input values
-#         season_leagues = self.get_SeasonLeague_Selections()
-#         bowlers = self.get_Bowler_Selections()
-#         individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
-        
         # Query DB based upon the user selections, create plot, then update canvas with new plot
         bowling_df = self.bowling_db.seriesScratch_query(['SS', 'Avg_Total'], self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
         self.update_canvas(plotter.highlight_AvePlot(bowling_df, ['SS', 'Avg_Total'], self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections))
@@ -878,10 +874,6 @@ class Window(tk.Frame):
         print(bowling_df)
 
     def speciality_plot_SummaryTable(self):
-        # Get all the user input values
-#         season_leagues = self.get_SeasonLeague_Selections()
-#         bowlers = self.get_Bowler_Selections()
-#         individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
         
         # Query DB based upon the user selections, create plot, then update canvas with new plot
         bowling_df = self.bowling_db.summaryTable_query(self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
@@ -890,11 +882,6 @@ class Window(tk.Frame):
         print(bowling_df)
         
     def speciality_plot_TeamHandycapTotal(self):
-        
-        # Get the relevant user input values
-#         season_leagues = self.get_SeasonLeague_Selections()
-#         bowlers = self.get_Bowler_Selections()
-#         individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
         
         # Verify that on the bowler list box that a team(s) selection has been
         # made not an individual bowler(s) selection
@@ -1082,6 +1069,32 @@ class Window(tk.Frame):
         self.statusmsg.set('Report: "{p}" deleted.\n\n\n\n'.format(p=selected_report))
     
         
+    def buildreport(self):
+        
+        # Get location to store resulting pdf report
+        temp_pdf_file = self.file_save(dialogtitle='Define Report pdf File Name\Path', ftype='pdf',
+                                      fdescription='pdf',
+                                      defalut_db_path=self.defaultsave_directory)
+        
+        if temp_pdf_file == None:
+            self.statusmsg.set("Action Aborted: Report file path not defined.\n\n\n\n")
+            return None
+        
+        
+        # Verify that the JSON file is up to date
+        
+        # Update json file with new plot information
+        # The use of the None here is totally confusing
+        # This should be implied as the JSON_Tools self object
+        # However it throws an error when I don't put a "place holder" parameter here???
+        JSON_Tools.dump_Data_To_File(None, self.jsonfilepath, db_filepath=self.master.file,
+                            reports=self.saved_reports, plots=self.saved_plots)
+        
+        
+        stdout = check_output('python reportbuilder.py {j} {p} {d}'.format(j=self.jsonfilepath, p=temp_pdf_file, d=self.master.file,), shell=True, universal_newlines=True)
+        self.statusmsg.set(stdout)
+        print(stdout)
+    
     def temp(self):
         print("Oh, hello there")
         
