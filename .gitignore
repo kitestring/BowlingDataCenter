@@ -9,6 +9,7 @@ plotter_v1.py
 reportbuilder_v1.py
 SQLiteAPI_v1.py
 loadOldData.py
+plotter_v2_obsoleted.py
 
 # Executables
 *.swf

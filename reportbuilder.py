@@ -10,7 +10,8 @@ import numpy as np
 from fpdf import FPDF
 
 subplot_fontsize = 13
-
+default_fig_size = (10,4)
+default_fig_dpi = 100
 
 def speciality_plot_SeriesScratch(**kwargs):
     
@@ -115,12 +116,13 @@ def build_report(utils_directory, dbfilepath, pdffilepath, isreport=True, plot_d
     
     default_axes_height = 4
     default_axes_width = 10
-    default_fig_dpi = 300
+    default_fig_dpi = 100
     
     
     
     if isreport:
         plot_dict = bowlinginstancedata['plots']
+        default_fig_dpi = 300
     
     
     speciality_plots_method_dict = {'Cumulative Match Points': speciality_plot_CumulativeMatchPoints,
@@ -201,8 +203,13 @@ def build_report(utils_directory, dbfilepath, pdffilepath, isreport=True, plot_d
             plt.savefig(plot_image_filepath[page_no], bbox_inches='tight')
 #             plt.show()
 #             plt.close()
-            
-    create_pdf(plot_image_filepath, pdffilepath, plot_count_per_page)
+    
+    if not isreport:
+        return fig
+        plt.close()
+    else:
+        create_pdf(plot_image_filepath, pdffilepath, plot_count_per_page)
+        plt.close()
     
         
 def plotlabels(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues):
@@ -449,7 +456,61 @@ def false_bowler_column_for_TeamHandycapTotal(row):
     if row['Team'] < 10:
         return 'Team 0' + str(row['Team'])
     else:
-        return 'Team ' + str(row['Team'])    
+        return 'Team ' + str(row['Team']) 
+    
+def starting_plot():
+    
+    fig = plt.figure(figsize=(default_fig_size), dpi=default_fig_dpi)
+    
+    ## Left Plot - Bowling Ball #1
+    ax1 = fig.add_subplot(1, 2, 1)
+    
+    # Draws a bowling ball using circles on a plot
+    ball_1 = plt.Circle((0.5, 0.5), 0.49, color='#2A5DEF')
+    finger1_1 = plt.Circle((0.78, 0.63), 0.06, color='black')
+    finger2_1 = plt.Circle((0.63, 0.78), 0.06, color='black')
+    thumb_1 = plt.Circle((0.5, 0.5), 0.08, color='black')
+    
+    # Create left bowling ball
+    ax1.add_artist(ball_1)
+    ax1.add_artist(finger1_1)
+    ax1.add_artist(finger2_1)
+    ax1.add_artist(thumb_1)
+    
+    # Remove axis borders
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['left'].set_visible(False)
+    ax1.spines['bottom'].set_visible(False)
+    
+    # Remove axis labels and tick markers
+    ax1.tick_params(bottom="off", labelbottom="off", left="off", labelleft="off") 
+    
+    ## Left Plot - Bowling Ball #1
+    ax2 = fig.add_subplot(1, 2, 2)
+    
+    # Draws a bowling ball using circles on a plot
+    ball_2 = plt.Circle((0.5, 0.5), 0.49, color='#278701')
+    finger1_2 = plt.Circle((0.22, 0.63), 0.06, color='black')
+    finger2_2 = plt.Circle((0.37, 0.78), 0.06, color='black')
+    thumb_2 = plt.Circle((0.5, 0.5), 0.08, color='black')
+    
+    # Create right bowling ball
+    ax2.add_artist(ball_2)
+    ax2.add_artist(finger1_2)
+    ax2.add_artist(finger2_2)
+    ax2.add_artist(thumb_2)
+    
+    # Remove axis borders
+    ax2.spines['right'].set_visible(False)
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['left'].set_visible(False)
+    ax2.spines['bottom'].set_visible(False)
+    
+    # Remove axis labels and tick markers
+    ax2.tick_params(bottom="off", labelbottom="off", left="off", labelleft="off")
+
+    return fig   
 
 if __name__ == '__main__':
         

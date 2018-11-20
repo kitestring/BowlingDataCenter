@@ -11,9 +11,9 @@ import datetime
 import numpy as np
 from subprocess import check_output
 
-import plotter  # @unresolvedimport
 from jsonAPI import JSON_Tools  # @unresolvedimport
 from SQLiteAPI import BowlingDB  # @unresolvedimport
+import reportbuilder # @unresolvedimport
 
 
 class Window(tk.Frame):
@@ -84,7 +84,7 @@ class Window(tk.Frame):
         self.master.grid_rowconfigure(0, weight=1)
         
         # Initialize the canvas and grit it 
-        self.update_canvas(plotter.starting_plot(), True)
+        self.update_canvas(reportbuilder.starting_plot())
         
         # # Create Season_League Widget Group
         self.seasonleague_lbox = tk.Listbox(self.contentframe, listvariable=self.season_league_strvar, height=4, width=25,
@@ -599,7 +599,6 @@ class Window(tk.Frame):
     
     def _delete_window(self):
         self.bowling_db.closeDBConnection() 
-        plotter.closeplot()
         try:
             self.master.destroy()
         except:
@@ -749,9 +748,7 @@ class Window(tk.Frame):
         else:
             return 0
     
-    def update_canvas(self, fig, isStartUp=False):
-        if isStartUp == False:
-            plotter.closeplot()
+    def update_canvas(self, fig):
         canvas = FigureCanvasTkAgg(fig, self.contentframe)
         canvas.show()
         canvas.get_tk_widget().grid(column=0, row=0, rowspan=11, sticky=(tk.N, tk.S, tk.E, tk.W))
@@ -822,6 +819,13 @@ class Window(tk.Frame):
             self.primary_yaxis_fields = self.saved_plots[plot]['primary_yaxis_fields']
             self.sp = self.saved_plots[plot]['sp']
             
+        self.plot_dict = {'KeyOrder': ['Preview_Only'],
+                     'Preview_Only': {'season_leagues_selections': self.season_leagues_selections,
+                     'bowlers_selections': self.bowlers_selections,
+                     'individualbowlerselection': self.individualbowlerselection,
+                     'primary_yaxis_fields': self.primary_yaxis_fields,
+                     'sp': self.sp}}
+            
         # check the list box selections and
         # Verify that at least one is selected for season league, bowler, and primary yaxis
         # Also, check if a speciality plot has been selected
@@ -833,42 +837,39 @@ class Window(tk.Frame):
             self.statusmsg.set('Invalid selection: Must select at least a single season league, bowler, and primary y-axis field to create a plot.\n\n\n\n')
             return None
         
-        # Query DB based upon the user selections, create plot, then update canvas with new plot
-        bowling_df = self.bowling_db.previewplot_query(self.primary_yaxis_fields, self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
-        self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, self.primary_yaxis_fields, self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)) 
+        fig = reportbuilder.build_report(self.utils_directory, self.master.file, None, False, self.plot_dict)
+
+        self.update_canvas(fig) 
 
         self.standardstatusmessage()
     
     def speciality_plot_SeriesScratch(self):
         
         # Query DB based upon the user selections, create plot, then update canvas with new plot
-        bowling_df = self.bowling_db.seriesScratch_query(['SS', 'Avg_Total'], self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
-        self.update_canvas(plotter.highlight_AvePlot(bowling_df, ['SS', 'Avg_Total'], self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections))
-        
-        print(bowling_df)
+        fig = reportbuilder.build_report(self.utils_directory, self.master.file, None, False, self.plot_dict)
+
+        self.update_canvas(fig)
     
     def speciality_plot_CumulativeMatchPoints(self):
         
         # Query DB based upon the user selections, create plot, then update canvas with new plot
-        bowling_df = self.bowling_db.matchPointsCumSum_query(self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
-        self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, ['Cumulative_Match_Points'], self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections))
-        print(bowling_df)
+        fig = reportbuilder.build_report(self.utils_directory, self.master.file, None, False, self.plot_dict)
+
+        self.update_canvas(fig)
         
     def speciality_plot_GameComparison(self):
         
         # Query DB based upon the user selections, create plot, then update canvas with new plot
-        bowling_df = self.bowling_db.GameComparison_query(self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
-        self.update_canvas(plotter.highlight_AvePlot(bowling_df, ['Gm1', 'Gm2', 'Gm3', 'Avg_Before'], self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections))
-        
-        print(bowling_df)
+        fig = reportbuilder.build_report(self.utils_directory, self.master.file, None, False, self.plot_dict)
+
+        self.update_canvas(fig)
 
     def speciality_plot_SummaryTable(self):
         
         # Query DB based upon the user selections, create plot, then update canvas with new plot
-        bowling_df = self.bowling_db.summaryTable_query(self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
-        self.update_canvas(plotter.buildSummaryTable_axes(bowling_df))
-        
-        print(bowling_df)
+        fig = reportbuilder.build_report(self.utils_directory, self.master.file, None, False, self.plot_dict)
+
+        self.update_canvas(fig)
         
     def speciality_plot_TeamHandycapTotal(self):
         
@@ -878,25 +879,10 @@ class Window(tk.Frame):
             self.statusmsg.set('Invalid selection: Must make a team selection and not an individual bowler selection.\n\n\n\n')
             return None
         
-        # Query DB based upon the user selections, create plot, then update canvas with new plot
-        bowling_df = self.bowling_db.teamHandicap_query(self.bowlers_selections, self.season_leagues_selections)
+        fig = reportbuilder.build_report(self.utils_directory, self.master.file, None, False, self.plot_dict)
+
+        self.update_canvas(fig)   
         
-        # Changing this column name makes it cooperate with plot_TeamHandycapTotal()
-        bowling_df['Bowler'] = bowling_df.apply(self.false_bowler_column_for_TeamHandycapTotal, axis=1)
-        
-        # If team 22 is included, remove week 1 because we only had 3 of 5 bowlers
-        if '22' in self.bowlers_selections:
-            bowling_df = bowling_df[bowling_df['Days'] != 0]
-        
-        self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, ['Team_Handicap'], self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections))
-        print(bowling_df)
-    
-    def false_bowler_column_for_TeamHandycapTotal(self, row):
-        
-        if row['Team'] < 10:
-            return 'Team 0' + str(row['Team'])
-        else:
-            return 'Team ' + str(row['Team'])    
     
     def addplot(self):
         
@@ -936,7 +922,6 @@ class Window(tk.Frame):
                                  'primary_yaxis_fields': self.primary_yaxis_fields,
                                  'sp': self.sp}
         
-        print(self.saved_plots)
         
         # Update json file with new plot information
         # The use of the None here is totally confusing
@@ -1082,7 +1067,6 @@ class Window(tk.Frame):
         
         stdout = check_output('python reportbuilder.py {j} {p} {d} {u}'.format(j=self.jsonfilepath, p=temp_pdf_file, d=self.master.file, u=self.utils_directory,), shell=True, universal_newlines=True)
         self.statusmsg.set(stdout)
-        print(stdout)
     
     def temp(self):
         print("Oh, hello there")
