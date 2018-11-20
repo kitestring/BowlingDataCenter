@@ -1080,7 +1080,7 @@ class Window(tk.Frame):
                             reports=self.saved_reports, plots=self.saved_plots)
         
         
-        stdout = check_output('python reportbuilder.py {j} {p} {d}'.format(j=self.jsonfilepath, p=temp_pdf_file, d=self.master.file,), shell=True, universal_newlines=True)
+        stdout = check_output('python reportbuilder.py {j} {p} {d} {u}'.format(j=self.jsonfilepath, p=temp_pdf_file, d=self.master.file, u=self.utils_directory,), shell=True, universal_newlines=True)
         self.statusmsg.set(stdout)
         print(stdout)
     

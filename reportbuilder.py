@@ -1,11 +1,13 @@
 from jsonAPI import JSON_Tools  # @unresolvedimport
 from SQLiteAPI import BowlingDB  # @unresolvedimport
 
+import os
 import sys
 import pandas as pd
 from subprocess import check_output
 import matplotlib.pyplot as plt
 import numpy as np
+from fpdf import FPDF
 
 subplot_fontsize = 13
 
@@ -107,20 +109,19 @@ def custom_plot(**kwargs):
     build_axes(bowling_df, primary_yaxis_fields, bowlers_selections, individualbowlerselection, season_leagues_selections, ax1)
 
 
-def build_report(isreport=True, plot_dict=None):
+def build_report(utils_directory, dbfilepath, pdffilepath, isreport=True, plot_dict=None):
     
     bowling_db = BowlingDB(dbfilepath)
     
     default_axes_height = 4
-    default_aexe_width = 10
-#     default_fig_dpi = 300
+    default_axes_width = 10
+    default_fig_dpi = 300
     
     
     
     if isreport:
         plot_dict = bowlinginstancedata['plots']
     
-    default_fig_size=(default_aexe_width, default_axes_height * len(plot_dict['KeyOrder']))
     
     speciality_plots_method_dict = {'Cumulative Match Points': speciality_plot_CumulativeMatchPoints,
                                              'Game Comparison': speciality_plot_GameComparison,
@@ -128,67 +129,81 @@ def build_report(isreport=True, plot_dict=None):
                                              'Summary Table': speciality_plot_SummaryTable,
                                              "Series Scratch": speciality_plot_SeriesScratch}
     
+    plots_by_page = set_report_pages(plot_dict['KeyOrder'], plots_per_page=3)
+    plot_count_per_page = [len(l) for l in plots_by_page]
+    plot_image_filepath = [os.path.join(utils_directory, 'temp_plot_{n}.jpg'.format(n=str(i))) for i in range(len(plots_by_page))]
     
+    for page_no, page_plot_list in enumerate(plots_by_page):
+        default_fig_size=(default_axes_width, default_axes_height * len(page_plot_list))
+        fig = plt.figure(figsize=(default_fig_size), dpi=default_fig_dpi)
+        num_plots = len(page_plot_list)
+        ax = []
+        
     
     # create a new list for each report page
 #     fig = plt.figure(figsize=(default_fig_size), dpi=default_fig_dpi)
-    fig = plt.figure(figsize=(default_fig_size))
-    num_plots = len(plot_dict['KeyOrder'])
-    ax = []
+#     fig = plt.figure(figsize=(default_fig_size))
+#     num_plots = len(plot_dict['KeyOrder'])
+#     ax = []
     
-    for p, plot_name in enumerate(plot_dict['KeyOrder']):
-#         print('*****************')
-#         print(plot_name)
-        # Parse plot parameters
-        season_leagues_selections = plot_dict[plot_name]['season_leagues_selections']
-        bowlers_selections = plot_dict[plot_name]['bowlers_selections']
-        individualbowlerselection = plot_dict[plot_name]['individualbowlerselection'] 
-        primary_yaxis_fields = plot_dict[plot_name]['primary_yaxis_fields']
-        sp = plot_dict[plot_name]['sp']
-        
-#         print('season_leagues_selections', season_leagues_selections)
-#         print('bowlers_selections: ', bowlers_selections)
-#         print('individualbowlerselection: ', individualbowlerselection)
-#         print('primary_yaxis_fields: ', primary_yaxis_fields)
-#         print('sp: ', sp)
-#         
-#         print('\n')
-        
-        ax.append(fig.add_subplot(num_plots, 1, 1 + p))
-        ax[p].set_prop_cycle('color',plt.cm.Dark2(np.linspace(0,1,9))) #@UndefinedVariable
-        
-        # Decision Tree
-            # If --> speciality plots
-            # elif --> invalid selections 
-            # else --> custom plots
+        for p, plot_name in enumerate(page_plot_list):
+    #         print('*****************')
+    #         print(plot_name)
+            # Parse plot parameters
+            season_leagues_selections = plot_dict[plot_name]['season_leagues_selections']
+            bowlers_selections = plot_dict[plot_name]['bowlers_selections']
+            individualbowlerselection = plot_dict[plot_name]['individualbowlerselection'] 
+            primary_yaxis_fields = plot_dict[plot_name]['primary_yaxis_fields']
+            sp = plot_dict[plot_name]['sp']
             
-        # routes to speciality plots
-        if sp != 'None' and season_leagues_selections != ['None'] and bowlers_selections != ['None']:
+    #         print('season_leagues_selections', season_leagues_selections)
+    #         print('bowlers_selections: ', bowlers_selections)
+    #         print('individualbowlerselection: ', individualbowlerselection)
+    #         print('primary_yaxis_fields: ', primary_yaxis_fields)
+    #         print('sp: ', sp)
+    #         
+    #         print('\n')
             
-            speciality_plots_method_dict[sp](season_leagues_selections=season_leagues_selections,
-                                             bowlers_selections=bowlers_selections,
-                                             individualbowlerselection=individualbowlerselection,
-                                             bowling_db=bowling_db,
-                                             ax1=ax[p])
+            ax.append(fig.add_subplot(num_plots, 1, 1 + p))
+            ax[p].set_prop_cycle('color',plt.cm.Dark2(np.linspace(0,1,9))) #@UndefinedVariable
+            
+            # Decision Tree
+                # If --> speciality plots
+                # elif --> invalid selections 
+                # else --> custom plots
+                
+            # routes to speciality plots
+            if sp != 'None' and season_leagues_selections != ['None'] and bowlers_selections != ['None']:
+                
+                speciality_plots_method_dict[sp](season_leagues_selections=season_leagues_selections,
+                                                 bowlers_selections=bowlers_selections,
+                                                 individualbowlerselection=individualbowlerselection,
+                                                 bowling_db=bowling_db,
+                                                 ax1=ax[p])
+            
+            
+            # Validate user inputs
+            elif season_leagues_selections == ['None'] or bowlers_selections == ['None'] or primary_yaxis_fields == ['None']:
+                print('Invalid selection: Must select at least a single season league, bowler, and primary y-axis field to create a plot.\n\n\n\n')
+                
+            # routes to custom plots
+            else:
+                custom_plot(season_leagues_selections=season_leagues_selections,
+                                                 bowlers_selections=bowlers_selections,
+                                                 individualbowlerselection=individualbowlerselection,
+                                                 primary_yaxis_fields=primary_yaxis_fields,
+                                                 bowling_db=bowling_db,
+                                                 ax1=ax[p])
+                
         
-        
-        # Validate user inputs
-        elif season_leagues_selections == ['None'] or bowlers_selections == ['None'] or primary_yaxis_fields == ['None']:
-            print('Invalid selection: Must select at least a single season league, bowler, and primary y-axis field to create a plot.\n\n\n\n')
+        # Save image 
+        if isreport:
+            plt.savefig(plot_image_filepath[page_no], bbox_inches='tight')
+#             plt.show()
+#             plt.close()
             
-        # routes to custom plots
-        else:
-            custom_plot(season_leagues_selections=season_leagues_selections,
-                                             bowlers_selections=bowlers_selections,
-                                             individualbowlerselection=individualbowlerselection,
-                                             primary_yaxis_fields=primary_yaxis_fields,
-                                             bowling_db=bowling_db,
-                                             ax1=ax[p])
-            
+    create_pdf(plot_image_filepath, pdffilepath, plot_count_per_page)
     
-        
-    if isreport:
-        plt.show()
         
 def plotlabels(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues):
     # Each parameter that is unique will be added to the plot label
@@ -271,6 +286,28 @@ def plotlabels(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
     
     return plot_title, plotlabels_lst
 
+def set_report_pages(plot_list, plots_per_page):
+    # Takes a list with each plot name
+    # Returns a list (page) of lists (plot_names)
+    # The number of plots per page of the report 
+    # is define by plots_per_page
+    
+    report_pages_plot_list = []
+    
+    while len(plot_list) > plots_per_page:
+        remaining_items = plot_list[:]
+        temp_page = []
+        
+        for plot in remaining_items[:plots_per_page]:
+            temp_page.append(plot_list.pop(0))
+            
+        report_pages_plot_list.append(temp_page)
+            
+    else:
+        report_pages_plot_list.append(plot_list)
+        
+    return report_pages_plot_list
+
 def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues, ax1, red_avg_line = False):
     
     # Generate plot labels/titles
@@ -321,6 +358,7 @@ def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
     # Turn on legend
     if plotlabels_lst != ['None']:
         ax1.legend(fontsize=8, loc='center', bbox_to_anchor=(-0.03,0.98), frameon=True)
+        ax1.legend(fontsize=8)
     
     # Title for plt    
     plt.title(plot_title, fontsize=subplot_fontsize)
@@ -384,6 +422,28 @@ def buildSummaryTable_axes(df, ax1):
     ax1.tick_params(axis="both", which="both", bottom="off", top="off",    
             labelbottom="off", left="off", right="off", labelleft="off")
 
+def create_pdf(imagelist, pdffilepath, plots):
+    # Create a pdf using the image
+    pdf = FPDF()
+    
+    # imagelist is the list with all image filenames
+    x,y,w = 0,15,210
+#     h = 84 * (len(plots)+1)
+#     x,y,w,h = 0,0,210,297 this width and height fill the entire page
+
+    # the loop allows for multiple pages on the pdf
+    for p, image in enumerate(imagelist):
+        h = 84 * plots[p]
+        pdf.add_page()
+        pdf.image(image,x,y,w,h)
+    pdf.output(pdffilepath, "F")
+    
+    stdout = check_output('start "" {p}'.format(p=pdffilepath), shell=True, universal_newlines=True)
+    
+    for image in imagelist:
+        os.remove(image)
+
+
 def false_bowler_column_for_TeamHandycapTotal(row):
     
     if row['Team'] < 10:
@@ -398,7 +458,8 @@ if __name__ == '__main__':
     jsonfilepath = sys.argv[1]
     pdffilepath = sys.argv[2]
     dbfilepath = sys.argv[3]
+    utils_directory = sys.argv[4]
     bowlinginstancedata = JSON_Tools().Load_Data(jsonfilepath)
     
-    build_report()
+    build_report(utils_directory, dbfilepath, pdffilepath)
     
