@@ -837,7 +837,6 @@ class Window(tk.Frame):
         bowling_df = self.bowling_db.previewplot_query(self.primary_yaxis_fields, self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
         self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, self.primary_yaxis_fields, self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)) 
 
-        print(bowling_df)
         self.standardstatusmessage()
     
     def speciality_plot_SeriesScratch(self):
@@ -850,22 +849,12 @@ class Window(tk.Frame):
     
     def speciality_plot_CumulativeMatchPoints(self):
         
-        # Get the relevant user input values
-#         season_leagues = self.get_SeasonLeague_Selections()
-#         bowlers = self.get_Bowler_Selections()
-#         individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
-        
         # Query DB based upon the user selections, create plot, then update canvas with new plot
         bowling_df = self.bowling_db.matchPointsCumSum_query(self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
         self.update_canvas(plotter.custom_plot_primaryaxisonly(bowling_df, ['Cumulative_Match_Points'], self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections))
         print(bowling_df)
         
     def speciality_plot_GameComparison(self):
-        
-        # Get all the user input values
-#         season_leagues = self.get_SeasonLeague_Selections()
-#         bowlers = self.get_Bowler_Selections()
-#         individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
         
         # Query DB based upon the user selections, create plot, then update canvas with new plot
         bowling_df = self.bowling_db.GameComparison_query(self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
@@ -877,7 +866,7 @@ class Window(tk.Frame):
         
         # Query DB based upon the user selections, create plot, then update canvas with new plot
         bowling_df = self.bowling_db.summaryTable_query(self.bowlers_selections, self.individualbowlerselection, self.season_leagues_selections)
-        self.update_canvas(plotter.summaryTablePlot(bowling_df))
+        self.update_canvas(plotter.buildSummaryTable_axes(bowling_df))
         
         print(bowling_df)
         

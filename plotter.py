@@ -67,7 +67,7 @@ def starting_plot():
 
     return fig
 
-def summaryTablePlot(df):
+def buildSummaryTable_axes(df):
     # closeplot()
     
     bowlers = sorted(df['Bowler'].unique().tolist())
