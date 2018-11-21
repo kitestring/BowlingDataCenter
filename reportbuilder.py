@@ -8,6 +8,7 @@ from subprocess import check_output
 import matplotlib.pyplot as plt
 import numpy as np
 from fpdf import FPDF
+from datetime import date
 
 subplot_fontsize = 13
 default_fig_size = (10,4)
@@ -131,7 +132,7 @@ def build_report(utils_directory, dbfilepath, pdffilepath, isreport=True, plot_d
                                              'Summary Table': speciality_plot_SummaryTable,
                                              "Series Scratch": speciality_plot_SeriesScratch}
     
-    plots_by_page = set_report_pages(plot_dict['KeyOrder'], plots_per_page=3)
+    plots_by_page = set_report_pages(plot_dict['KeyOrder'], plots_per_page=3) 
     plot_count_per_page = [len(l) for l in plots_by_page]
     plot_image_filepath = [os.path.join(utils_directory, 'temp_plot_{n}.jpg'.format(n=str(i))) for i in range(len(plots_by_page))]
     
@@ -141,30 +142,13 @@ def build_report(utils_directory, dbfilepath, pdffilepath, isreport=True, plot_d
         num_plots = len(page_plot_list)
         ax = []
         
-    
-    # create a new list for each report page
-#     fig = plt.figure(figsize=(default_fig_size), dpi=default_fig_dpi)
-#     fig = plt.figure(figsize=(default_fig_size))
-#     num_plots = len(plot_dict['KeyOrder'])
-#     ax = []
-    
         for p, plot_name in enumerate(page_plot_list):
-    #         print('*****************')
-    #         print(plot_name)
             # Parse plot parameters
             season_leagues_selections = plot_dict[plot_name]['season_leagues_selections']
             bowlers_selections = plot_dict[plot_name]['bowlers_selections']
             individualbowlerselection = plot_dict[plot_name]['individualbowlerselection'] 
             primary_yaxis_fields = plot_dict[plot_name]['primary_yaxis_fields']
             sp = plot_dict[plot_name]['sp']
-            
-    #         print('season_leagues_selections', season_leagues_selections)
-    #         print('bowlers_selections: ', bowlers_selections)
-    #         print('individualbowlerselection: ', individualbowlerselection)
-    #         print('primary_yaxis_fields: ', primary_yaxis_fields)
-    #         print('sp: ', sp)
-    #         
-    #         print('\n')
             
             ax.append(fig.add_subplot(num_plots, 1, 1 + p))
             ax[p].set_prop_cycle('color',plt.cm.Dark2(np.linspace(0,1,9))) #@UndefinedVariable
@@ -188,7 +172,7 @@ def build_report(utils_directory, dbfilepath, pdffilepath, isreport=True, plot_d
             elif season_leagues_selections == ['None'] or bowlers_selections == ['None'] or primary_yaxis_fields == ['None']:
                 print('Invalid selection: Must select at least a single season league, bowler, and primary y-axis field to create a plot.\n\n\n\n')
                 
-            # routes to custom plots
+            # route to custom plots
             else:
                 custom_plot(season_leagues_selections=season_leagues_selections,
                                                  bowlers_selections=bowlers_selections,
@@ -201,10 +185,8 @@ def build_report(utils_directory, dbfilepath, pdffilepath, isreport=True, plot_d
         # Save image 
         if isreport:
             plt.savefig(plot_image_filepath[page_no], bbox_inches='tight')
-#             plt.show()
-#             plt.close()
     
-    if not isreport:
+    if not isreport: # Preview instead of report
         return fig
         plt.close()
     else:
@@ -222,7 +204,7 @@ def plotlabels(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
     plotlabels_lst = []
     
     # if teams was selected for the bowler selection type
-    # the determine the bowlers that are included in the selection
+    # then determine the bowlers that are included in the team selection
     if not isIndividualBowlerSelection: # bowler list box selected by team(s) and not by bowler(s)
         bowlers = bowling_df['Bowler'].unique()
     
@@ -297,7 +279,7 @@ def set_report_pages(plot_list, plots_per_page):
     # Takes a list with each plot name
     # Returns a list (page) of lists (plot_names)
     # The number of plots per page of the report 
-    # is define by plots_per_page
+    # is defined by plots_per_page parameter
     
     report_pages_plot_list = []
     
@@ -317,6 +299,17 @@ def set_report_pages(plot_list, plots_per_page):
 
 def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues, ax1, red_avg_line = False):
     
+    # Determine x axis field based upon the number of days between the 
+    # first and last date.  If the difference is beyond the threshold
+    # the plot will be vs Days and not Date.
+    # This is because when plotting season leagues from different years
+    # plotting by date mis-aligns the data visualization
+    timedelta = bowling_df['Date'].max() - bowling_df['Date'].min()
+    if timedelta.days > 360:
+        x_axis_col = 'Days'
+    else:
+        x_axis_col = 'Date'
+    
     # Generate plot labels/titles
     plot_title, plotlabels_lst = plotlabels(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues)
     plot = 0
@@ -331,8 +324,8 @@ def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
             for column in primary_yaxis:
                 # To plot season leagues of different years use 'Days' on the x-axis rather than 'Date'
                 df = bowling_df[(bowling_df['Bowler'] == b) & (bowling_df['Season_League'] == sl)].copy()
-                df.sort_values(by=['Date'], inplace=True)
-                xaxis = df['Date']
+                df.sort_values(by=[x_axis_col], inplace=True)
+                xaxis = df[x_axis_col]
                 yaxis = df[column]
                 
                 # If true makes line red and dashed

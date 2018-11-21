@@ -44,18 +44,13 @@ class Window(tk.Frame):
         self.primary_yaxis = []
         self.primary_yaxis_strvar = tk.StringVar(value=self.primary_yaxis)
         
+        # I want self.speciality_plots to be sorted, except have None be the first item
         # This allows for the insertion of a list item at specified index
         insert_at = 0  # index at which to insert item, in this case "None"
         speciality_plots_temp = sorted(['Cumulative Match Points', 'Game Comparison', 'Team Handicap Total',
                                         'Summary Table', 'Series Scratch'])
         self.speciality_plots = speciality_plots_temp[:]  # created copy of list analytical_columns as sec_yaxis_analytical_columns
         self.speciality_plots[insert_at:insert_at] = ['None']  # insert "None" within sec_yaxis_analytical_columns at index = insert_at
-
-        self.speciality_plots_method_dict = {'Cumulative Match Points': self.speciality_plot_CumulativeMatchPoints,
-                                             'Game Comparison': self.speciality_plot_GameComparison,
-                                             'Team Handicap Total': self.speciality_plot_TeamHandycapTotal,
-                                             'Summary Table': self.speciality_plot_SummaryTable,
-                                             "Series Scratch": self.speciality_plot_SeriesScratch}
         self.speciality_plots_strvar = tk.StringVar(value=self.speciality_plots)
         
         self.plots = self.saved_plots['KeyOrder'][:] # List that retains the order each items (plots) was added to the saved_plots dictionary
@@ -86,7 +81,9 @@ class Window(tk.Frame):
         # Initialize the canvas and grit it 
         self.update_canvas(reportbuilder.starting_plot())
         
-        # # Create Season_League Widget Group
+        ### Create widgets
+        
+        ## Create Season_League Widget Group
         self.seasonleague_lbox = tk.Listbox(self.contentframe, listvariable=self.season_league_strvar, height=4, width=25,
                                  exportselection=tk.FALSE, selectmode=tk.EXTENDED, name="seasonleague")
         seasonleague_lbl = tk.Label(self.contentframe, text='Season League', anchor=tk.W)
@@ -94,12 +91,12 @@ class Window(tk.Frame):
         seasonleague_btn = tk.Button(self.contentframe, text='Add', command=self.add_season_league)
         seasonleague_lbl_entry = tk.Entry(self.contentframe, textvariable=self.season_league_entry, width=19)
         
-        # # Create primary y-axis Widget Group
+        ## Create primary y-axis Widget Group
         self.pri_yaxis_lbox = tk.Listbox(self.contentframe, listvariable=self.primary_yaxis_strvar, height=4, width=25,
                                  exportselection=tk.FALSE, selectmode=tk.EXTENDED, name="primary_yaxis")
         pri_yaxis_lbl = tk.Label(self.contentframe, text='Primary y-axis', anchor=tk.W)
         
-        # # Create Plot queue Widget Group
+        ## Create Plot queue Widget Group
         self.plots_lbox = tk.Listbox(self.contentframe, listvariable=self.plots_strvar, height=4, width=25,
                                  exportselection=tk.FALSE, name="plots")
         plots_lbl = tk.Label(self.contentframe, text='Plot Queue', anchor=tk.W)
@@ -107,7 +104,7 @@ class Window(tk.Frame):
         removeplot_btn = tk.Button(self.contentframe, text='Remove', command=self.removeplot)
         clear_btn = tk.Button(self.contentframe, text='Clear', command=self.clearplotqueue)
         
-        # # Create bowler Widget Group
+        ## Create bowler Widget Group
         self.bowlers_lbox = tk.Listbox(self.contentframe, listvariable=self.bowlers_strvar, height=4, width=25,
                                       exportselection=tk.FALSE, selectmode=tk.EXTENDED, name="bowler")
         bowlers_lbl = tk.Label(self.contentframe, text='Bowlers', anchor=tk.W)
@@ -115,27 +112,28 @@ class Window(tk.Frame):
         self.individual_radio = tk.Radiobutton(self.contentframe, text="Individual", padx=0, variable=self.bowler_selection_type_intvar, value=0, command=self.select_bowler_RdoBtn)
         self.team_radio = tk.Radiobutton(self.contentframe, text="Team", padx=0, variable=self.bowler_selection_type_intvar, value=1, command=self.select_bowler_RdoBtn)
         
-        # # Create speciality_plots y-axis Widget Group
+        ## Create speciality_plots y-axis Widget Group
         self.speciality_plots_lbox = tk.Listbox(self.contentframe, listvariable=self.speciality_plots_strvar, height=4, width=25,
                                  exportselection=tk.FALSE, name="speciality_plots")
         speciality_plots_lbl = tk.Label(self.contentframe, text='Speciality Plots', anchor=tk.W)
         
-        # # Create Saved Reports queue Widget Group
+        ## Create Saved Reports queue Widget Group
         self.reports_lbox = tk.Listbox(self.contentframe, listvariable=self.reports_strvar, height=4, width=25,
                                  exportselection=tk.FALSE, selectmode=tk.EXTENDED, name="reports")
         reports_lbl = tk.Label(self.contentframe, text='Saved Reports', anchor=tk.W)
         savereport_btn = tk.Button(self.contentframe, text='Save', command=self.savereport)
         removeremove_btn = tk.Button(self.contentframe, text='Remove', command=self.removereport)
         
-        # # Final Buttons row Widget Group
+        ## Final Buttons row Widget Group
         preview_btn = tk.Button(self.contentframe, text='Preview', command=self.preview_plot)
         buildreport_btn = tk.Button(self.contentframe, text='Build Report', command=self.buildreport)
         export_btn = tk.Button(self.contentframe, text='Export csv', command=self.export_csv)
         
-        # Status message output
+        ## Status message output
         status = tk.Label(self.contentframe, textvariable=self.statusmsg, text='Pack', anchor=tk.W)
         
-        # Grid widgets
+        
+        ### Grid widgets
         seasonleague_lbl.grid(column=1, row=0, sticky=(tk.S, tk.W))
         self.seasonleague_lbox.grid(column=1, row=1, sticky=(tk.S, tk.E, tk.W))
         addseasonleague_lbl.grid(column=1, row=2)
@@ -170,6 +168,9 @@ class Window(tk.Frame):
         export_btn.grid(column=1, row=10, padx=133, columnspan=3, sticky=(tk.S, tk.W))
         
         status.grid(column=0, row=11, columnspan=5, sticky=(tk.W, tk.E, tk.S))
+        
+        
+        ### Scroll Bars
         
         # Season League Scroll bar    
         seasonleague_sb = tk.Scrollbar(self.contentframe)
@@ -207,7 +208,9 @@ class Window(tk.Frame):
         self.reports_lbox.configure(yscrollcommand=reports_sb.set)
         reports_sb.config(command=self.reports_lbox.yview)
         
-        # ## Tab Menu
+        
+        ### Tab Menu
+        
         # Tab Menu of the main frame
         tab_menu = tk.Menu(self.master) 
         self.master.config(menu=tab_menu)
@@ -233,7 +236,8 @@ class Window(tk.Frame):
         
         tab_menu.add_cascade(label='Load', menu=Load_tab)  # Add Load tab object to tab_menu
         
-        # ## Set event bindings for when a plot selection is made
+        
+        ### Set event bindings for when a plot selection is made
         self.seasonleague_lbox.bind('<<ListboxSelect>>', self.select_seasonleague_lbox)
         self.pri_yaxis_lbox.bind('<<ListboxSelect>>', self.select_pri_yaxis_lbox)
         self.plots_lbox.bind('<<ListboxSelect>>', self.select_plots_lbox)
@@ -241,7 +245,9 @@ class Window(tk.Frame):
         self.speciality_plots_lbox.bind('<<ListboxSelect>>', self.select_speciality_plots_lbox) 
         self.reports_lbox.bind('<<ListboxSelect>>', self.select_reports_lbox)
         
-        # # Initialize the list boxes, note the bowler list box
+        
+        
+        ### Initialize the list boxes, note the bowler list box
         # will not be initialized because it is dependent on the 
         # season league selection
         self.update_seasonleague_lbox()
@@ -295,9 +301,13 @@ class Window(tk.Frame):
         self.update_plots_lbox(None)
         
     def select_bowler_RdoBtn(self):
-        # 0 = Individual Bowler Selection
-        # 1 = Team Bowler Selection
-        # print(self.bowler_selection_type_intvar.get())
+        # Once bowler type radio button selection is made,
+        # the bowler list box will be update to reflect the 
+        # Radio button selection
+            # Note: Radio button selection mapping
+            # 0 = Individual Bowler Selection
+            # 1 = Team Bowler Selection
+
         self.update_bowlers_lbox()
         self.bowlers_lbox.selection_clear(0, tk.END)
         self.standardstatusmessage()
@@ -804,13 +814,16 @@ class Window(tk.Frame):
     
     def preview_plot(self, IsSavedPlot=False):
         
-        # Get all the user input values
+        ### Get all the user input values
+        # From the GUI
         if IsSavedPlot == False:
             self.season_leagues_selections = self.get_SeasonLeague_Selections()
             self.bowlers_selections = self.get_Bowler_Selections()
             self.individualbowlerselection = self.bowler_selection_type_intvar.get() == 0  # 0 = Individual Bowler Selection, 1 = Team Bowler Selection
             self.primary_yaxis_fields = self.get_Primary_yaxis_Selections()
             self.sp = self.get_speciality_plots_Selections()
+        
+        # From a saved plot
         elif IsSavedPlot == True:
             plot = self.get_plots_Selections()
             self.season_leagues_selections = self.saved_plots[plot]['season_leagues_selections']
@@ -818,71 +831,44 @@ class Window(tk.Frame):
             self.individualbowlerselection = self.saved_plots[plot]['individualbowlerselection'] 
             self.primary_yaxis_fields = self.saved_plots[plot]['primary_yaxis_fields']
             self.sp = self.saved_plots[plot]['sp']
+        
+        
+        ### Check the list box selections validate the user inputs...
+        
+        # A valid speciality plot select ion must has a speciality plot, season league anda bowler selection selection
+            # If this is true and it is a 'Team Handicap Total' plot  then the bowler selection type must be set to team
+        # For a custom plot season league, bowler, and primary yaxis must all have seletions
+        
+        if self.sp != 'None' and self.season_leagues_selections != ['None'] and self.bowlers_selections != ['None']:
             
-        self.plot_dict = {'KeyOrder': ['Preview_Only'],
+            if self.sp == 'Team Handicap Total' and self.individualbowlerselection == True:
+                self.statusmsg.set('Invalid selection: Must make a team selection and not an individual bowler selection.\n\n\n\n')
+                return None
+                
+        elif self.season_leagues_selections == ['None'] or self.bowlers_selections == ['None'] or self.primary_yaxis_fields == ['None']:
+            self.statusmsg.set('Invalid selection: Must select at least a single season league, bowler, and primary y-axis field to create a plot.\n\n\n\n')
+            return None
+        
+        
+        ## User input validation complete
+        
+        # Convert user the inputs into a dictionary formatted as defined by reportbuilder.build_report()
+        plot_dict = {'KeyOrder': ['Preview_Only'],
                      'Preview_Only': {'season_leagues_selections': self.season_leagues_selections,
                      'bowlers_selections': self.bowlers_selections,
                      'individualbowlerselection': self.individualbowlerselection,
                      'primary_yaxis_fields': self.primary_yaxis_fields,
                      'sp': self.sp}}
-            
-        # check the list box selections and
-        # Verify that at least one is selected for season league, bowler, and primary yaxis
-        # Also, check if a speciality plot has been selected
         
-        if self.sp != 'None' and self.season_leagues_selections != ['None'] and self.bowlers_selections != ['None']:
-            self.speciality_plots_method_dict[self.sp]()
-            return None
-        elif self.season_leagues_selections == ['None'] or self.bowlers_selections == ['None'] or self.primary_yaxis_fields == ['None']:
-            self.statusmsg.set('Invalid selection: Must select at least a single season league, bowler, and primary y-axis field to create a plot.\n\n\n\n')
-            return None
-        
-        fig = reportbuilder.build_report(self.utils_directory, self.master.file, None, False, self.plot_dict)
+        # Create the figure defined by the user inputs
+        fig = reportbuilder.build_report(self.utils_directory, self.master.file, None, False, plot_dict)
 
+        # Update the canvas with the figure
         self.update_canvas(fig) 
-
+        
+        # Provide a status update
         self.standardstatusmessage()
     
-    def speciality_plot_SeriesScratch(self):
-        
-        # Query DB based upon the user selections, create plot, then update canvas with new plot
-        fig = reportbuilder.build_report(self.utils_directory, self.master.file, None, False, self.plot_dict)
-
-        self.update_canvas(fig)
-    
-    def speciality_plot_CumulativeMatchPoints(self):
-        
-        # Query DB based upon the user selections, create plot, then update canvas with new plot
-        fig = reportbuilder.build_report(self.utils_directory, self.master.file, None, False, self.plot_dict)
-
-        self.update_canvas(fig)
-        
-    def speciality_plot_GameComparison(self):
-        
-        # Query DB based upon the user selections, create plot, then update canvas with new plot
-        fig = reportbuilder.build_report(self.utils_directory, self.master.file, None, False, self.plot_dict)
-
-        self.update_canvas(fig)
-
-    def speciality_plot_SummaryTable(self):
-        
-        # Query DB based upon the user selections, create plot, then update canvas with new plot
-        fig = reportbuilder.build_report(self.utils_directory, self.master.file, None, False, self.plot_dict)
-
-        self.update_canvas(fig)
-        
-    def speciality_plot_TeamHandycapTotal(self):
-        
-        # Verify that on the bowler list box that a team(s) selection has been
-        # made not an individual bowler(s) selection
-        if self.individualbowlerselection == True:
-            self.statusmsg.set('Invalid selection: Must make a team selection and not an individual bowler selection.\n\n\n\n')
-            return None
-        
-        fig = reportbuilder.build_report(self.utils_directory, self.master.file, None, False, self.plot_dict)
-
-        self.update_canvas(fig)   
-        
     
     def addplot(self):
         
@@ -1067,13 +1053,6 @@ class Window(tk.Frame):
         
         stdout = check_output('python reportbuilder.py {j} {p} {d} {u}'.format(j=self.jsonfilepath, p=temp_pdf_file, d=self.master.file, u=self.utils_directory,), shell=True, universal_newlines=True)
         self.statusmsg.set(stdout)
-    
-    def temp(self):
-        print("Oh, hello there")
-        
-    def lboxtemp(self, event=None):
-        print('Temp Shit')
-
 
 class popupWindow(object):
 
