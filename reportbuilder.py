@@ -26,7 +26,7 @@ def speciality_plot_SeriesScratch(**kwargs):
     # Query DB based upon the user selections, create plot, then update canvas with new plot
     bowling_df = bowling_db.seriesScratch_query(['SS', 'Avg_Total'], bowlers_selections, individualbowlerselection, season_leagues_selections)
     
-    build_axes(bowling_df, ['SS', 'Avg_Total'], bowlers_selections, individualbowlerselection, season_leagues_selections, ax1, specilization='red_avg_line')
+    build_axes(bowling_df, ['SS', 'Avg_Total'], bowlers_selections, individualbowlerselection, season_leagues_selections, ax1, specilization=['red_avg_line'])
     
 def speciality_plot_CumulativeMatchPoints(**kwargs):
     # parse out variables
@@ -52,7 +52,7 @@ def speciality_plot_GameComparison(**kwargs):
     
     # Query DB based upon the user selections, create plot, then update canvas with new plot
     bowling_df = bowling_db.GameComparison_query(bowlers_selections, individualbowlerselection, season_leagues_selections)
-    build_axes(bowling_df, ['Gm1', 'Gm2', 'Gm3', 'Avg_Before'], bowlers_selections, individualbowlerselection, season_leagues_selections, ax1, specilization='red_avg_line')
+    build_axes(bowling_df, ['Gm1', 'Gm2', 'Gm3', 'Avg_Before'], bowlers_selections, individualbowlerselection, season_leagues_selections, ax1, specilization=['red_avg_line', 'NumericMarkers_byfours'])
     
     
 def speciality_plot_TeamSeriesHCP(**kwargs):
@@ -80,7 +80,7 @@ def speciality_plot_TeamSeriesHCP(**kwargs):
         bowling_df = bowling_df[bowling_df['Days'] != 0]
     
     
-    build_axes(bowling_df, ['Team_Handicap'], bowlers_selections, individualbowlerselection, season_leagues_selections, ax1)
+    build_axes(bowling_df, ['Team_Handicap'], bowlers_selections, individualbowlerselection, season_leagues_selections, ax1, specilization=['PlotLines_BlueOrange_Matching'])
     
 def speciality_plot_TeamGameHCP(**kwargs):
     
@@ -107,8 +107,7 @@ def speciality_plot_TeamGameHCP(**kwargs):
     if '22' in bowlers_selections:
         bowling_df = bowling_df[bowling_df['Days'] != 0]
     
-    print(bowling_df)
-    build_axes(bowling_df, ['Gm1_Tm_HCP', 'Gm2_Tm_HCP', 'Gm3_Tm_HCP'], bowlers_selections, individualbowlerselection, season_leagues_selections, ax1, specilization='Numeric_Markers')
+    build_axes(bowling_df, ['Gm1_Tm_HCP', 'Gm2_Tm_HCP', 'Gm3_Tm_HCP'], bowlers_selections, individualbowlerselection, season_leagues_selections, ax1, specilization=['PlotLines_BlueOrangeFamilies', 'NumericMarkers_bythrees'])
     
 
 def speciality_plot_SummaryTable(**kwargs):
@@ -135,9 +134,17 @@ def custom_plot(**kwargs):
     bowling_db = kwargs['bowling_db']
     ax1 = kwargs['ax1']
     
+    # When match point is plotted only have tick labels for 0, 1, 2, 3, & 4
+    if 'Match_Points' in primary_yaxis_fields:
+        specilization = 'y_ticklabels_0_4'
+    
+    # otherwise use default tick labels
+    else: 
+        specilization = []
+    
     # Query DB based upon the user selections, create plot, then update canvas with new plot
     bowling_df = bowling_db.previewplot_query(primary_yaxis_fields, bowlers_selections, individualbowlerselection, season_leagues_selections)
-    build_axes(bowling_df, primary_yaxis_fields, bowlers_selections, individualbowlerselection, season_leagues_selections, ax1)
+    build_axes(bowling_df, primary_yaxis_fields, bowlers_selections, individualbowlerselection, season_leagues_selections, ax1,specilization)
 
 
 def build_report(utils_directory, dbfilepath, pdffilepath, isreport=True, plot_dict=None):
@@ -326,7 +333,7 @@ def set_report_pages(plot_list, plots_per_page):
         
     return report_pages_plot_list
 
-def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues, ax1, specilization=None):
+def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues, ax1, specilization=[]):
     
     # Determine x axis field based upon the number of days between the 
     # first and last date.  If the difference is beyond the threshold
@@ -346,8 +353,15 @@ def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
     ### Sets the color mapping
     
     # 1st 3 lines darkening shades of blue, next 3 lines darkening shades of orange
-    if specilization == 'Numeric_Markers':
+    # Note each team has 3 plots each team is assigned a color family for its three plots (blue or orange)
+    # A maximum of 2 teams can be include in this type of plot
+    if 'PlotLines_BlueOrangeFamilies' in specilization:
         ax1.set_prop_cycle('color',['#000FFF','#888FFF','#D2D5FF','#FF8300', '#FFAD55', '#FFD5A9']) #@UndefinedVariable
+    
+    # Aligns the 1st 2 colors to the first blue and first orange from the 'TeamGameHCP' color map
+    # This way each team will have a consistent color scheme from 'TeamGameHCP' to "TeamSeriesHCP"
+    elif "PlotLines_BlueOrange_Matching" in specilization:
+        ax1.set_prop_cycle('color',['#000FFF','#FF8300', '#3ED78D', '#D73EA9', '#A3AF0A', '#FF0000']) #@UndefinedVariable
     
     # Default CM is Dark2
     else:
@@ -356,6 +370,13 @@ def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
     if not isIndividualBowlerSelection: # bowler list box selected by team(s) and not by bowler(s)
         bowlers = bowling_df['Bowler'].unique()
     
+    
+    # The denominator helps to set the numeric plot line markers 
+    if 'NumericMarkers_bythrees' in specilization:
+        denominator = 3
+    elif 'NumericMarkers_byfours' in specilization:
+        denominator = 4
+    
     for b in bowlers:
         
         for sl in season_leagues:
@@ -363,26 +384,27 @@ def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
             for column in primary_yaxis:
                 
                 # Set marker type depending on plot specilization
-                if specilization == 'Numeric_Markers':
-                    markersize = 5
-                    if round(plot/3 - int(plot/3), 2) == 0.00:
+                if 'NumericMarkers_bythrees' in specilization or 'NumericMarkers_byfours' in specilization:
+                    markersize = 6
+                    if round(plot/denominator - int(plot/denominator), 2) == 0.00:
                         marker = '$1$'
-                    elif round(plot/3 - int(plot/3), 2) == 0.33:
+                    elif round(plot/denominator - int(plot/denominator), 2) == round(1/denominator, 2):
                         marker = '$2$'
-                    elif round(plot/3 - int(plot/3), 2) == 0.67:
+                    elif round(plot/denominator - int(plot/denominator), 2) ==round(2/denominator, 2):
                         marker = '$3$'
                 else:
                     marker = 's'
                     markersize = 4
         
-                # To plot season leagues of different years use 'Days' on the x-axis rather than 'Date'
+                # When plotting season leagues of different years use 'Days' on the x-axis rather than 'Date'
+                # otherwise the scaling is terrible
                 df = bowling_df[(bowling_df['Bowler'] == b) & (bowling_df['Season_League'] == sl)].copy()
                 df.sort_values(by=[x_axis_col], inplace=True)
                 xaxis = df[x_axis_col]
                 yaxis = df[column]
                 
-                # If true makes line red and dashed
-                if specilization == 'red_avg_line' and (column == 'Avg_Before' or column == 'Avg_Total'):
+                # If true makes plot line red and dashed
+                if 'red_avg_line' in specilization and (column == 'Avg_Before' or column == 'Avg_Total'):
                     ax1.plot(xaxis, yaxis, label=plotlabels_lst[plot], linestyle=':', linewidth=2.0, color='#FF0000', 
                                        marker='s', markersize=4, markeredgecolor='black')
                 
@@ -405,6 +427,13 @@ def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
     ax1.tick_params(axis="both", which="both", bottom="off", top="off",    
             labelbottom="on", left="off", right="off", labelleft="on")
     
+    # For Match point plots where values can only be integers between 0 - 4 
+    # set the tick labels where they can only be those values (not decimals) 
+    # and customize the y-axis to it is zoomed nicely to scale
+    if 'y_ticklabels_0_4' in specilization:
+        ax1.set_ylim([-0.5, 4.5])
+        ax1.set_yticklabels(['', 0, 1, 2, 3, 4])
+                        
     # Turn on y-axis grid
     ax1.grid(b=True, axis='y', linestyle='--', linewidth=0.7, alpha=0.8)
     
