@@ -26,7 +26,7 @@ def speciality_plot_SeriesScratch(**kwargs):
     # Query DB based upon the user selections, create plot, then update canvas with new plot
     bowling_df = bowling_db.seriesScratch_query(['SS', 'Avg_Total'], bowlers_selections, individualbowlerselection, season_leagues_selections)
     
-    build_axes(bowling_df, ['SS', 'Avg_Total'], bowlers_selections, individualbowlerselection, season_leagues_selections, ax1, red_avg_line = True)
+    build_axes(bowling_df, ['SS', 'Avg_Total'], bowlers_selections, individualbowlerselection, season_leagues_selections, ax1, specilization='red_avg_line')
     
 def speciality_plot_CumulativeMatchPoints(**kwargs):
     # parse out variables
@@ -52,10 +52,10 @@ def speciality_plot_GameComparison(**kwargs):
     
     # Query DB based upon the user selections, create plot, then update canvas with new plot
     bowling_df = bowling_db.GameComparison_query(bowlers_selections, individualbowlerselection, season_leagues_selections)
-    build_axes(bowling_df, ['Gm1', 'Gm2', 'Gm3', 'Avg_Before'], bowlers_selections, individualbowlerselection, season_leagues_selections, ax1, red_avg_line = True)
+    build_axes(bowling_df, ['Gm1', 'Gm2', 'Gm3', 'Avg_Before'], bowlers_selections, individualbowlerselection, season_leagues_selections, ax1, specilization='red_avg_line')
     
     
-def speciality_plot_TeamHandycapTotal(**kwargs):
+def speciality_plot_TeamSeriesHCP(**kwargs):
     # parse out variables
     individualbowlerselection = kwargs['individualbowlerselection']
     season_leagues_selections = kwargs['season_leagues_selections']
@@ -81,8 +81,36 @@ def speciality_plot_TeamHandycapTotal(**kwargs):
     
     
     build_axes(bowling_df, ['Team_Handicap'], bowlers_selections, individualbowlerselection, season_leagues_selections, ax1)
-
     
+def speciality_plot_TeamGameHCP(**kwargs):
+    
+    # parse out variables
+    individualbowlerselection = kwargs['individualbowlerselection']
+    season_leagues_selections = kwargs['season_leagues_selections']
+    bowlers_selections = kwargs['bowlers_selections']
+    bowling_db = kwargs['bowling_db']
+    ax1 = kwargs['ax1']
+    
+    # Verify that on the bowler list box that a team(s) selection has been
+    # made not an individual bowler(s) selection
+    if individualbowlerselection == True:
+        print('Invalid selection: Must make a team selection and not an individual bowler selection.\n\n\n\n')
+        return None
+    
+    # Query DB based upon the user selections, create plot, then update canvas with new plot
+    bowling_df = bowling_db.teamGameHCP_query(bowlers_selections, season_leagues_selections)
+    
+    # Changing this column name makes it cooperate with plot_TeamHandycapTotal()
+    bowling_df['Bowler'] = bowling_df.apply(false_bowler_column_for_TeamHandycapTotal, axis=1)
+    
+    # If team 22 is included, remove week 1 because we only had 3 of 5 bowlers
+    if '22' in bowlers_selections:
+        bowling_df = bowling_df[bowling_df['Days'] != 0]
+    
+    print(bowling_df)
+    build_axes(bowling_df, ['Gm1_Tm_HCP', 'Gm2_Tm_HCP', 'Gm3_Tm_HCP'], bowlers_selections, individualbowlerselection, season_leagues_selections, ax1, specilization='Numeric_Markers')
+    
+
 def speciality_plot_SummaryTable(**kwargs):
      
     # parse out variables
@@ -95,6 +123,7 @@ def speciality_plot_SummaryTable(**kwargs):
     bowling_df = bowling_db.summaryTable_query(bowlers_selections, individualbowlerselection, season_leagues_selections)
     
     buildSummaryTable_axes(bowling_df, ax1)
+    
     
 def custom_plot(**kwargs):
      
@@ -128,9 +157,10 @@ def build_report(utils_directory, dbfilepath, pdffilepath, isreport=True, plot_d
     
     speciality_plots_method_dict = {'Cumulative Match Points': speciality_plot_CumulativeMatchPoints,
                                              'Game Comparison': speciality_plot_GameComparison,
-                                             'Team Handicap Total': speciality_plot_TeamHandycapTotal,
+                                             'Team Series w/ Handicap': speciality_plot_TeamSeriesHCP,
                                              'Summary Table': speciality_plot_SummaryTable,
-                                             "Series Scratch": speciality_plot_SeriesScratch}
+                                             "Series Scratch": speciality_plot_SeriesScratch,
+                                             'Team Game w/ Handicap': speciality_plot_TeamGameHCP}
     
     plots_by_page = set_report_pages(plot_dict['KeyOrder'], plots_per_page=3) 
     plot_count_per_page = [len(l) for l in plots_by_page]
@@ -151,7 +181,6 @@ def build_report(utils_directory, dbfilepath, pdffilepath, isreport=True, plot_d
             sp = plot_dict[plot_name]['sp']
             
             ax.append(fig.add_subplot(num_plots, 1, 1 + p))
-            ax[p].set_prop_cycle('color',plt.cm.Dark2(np.linspace(0,1,9))) #@UndefinedVariable
             
             # Decision Tree
                 # If --> speciality plots
@@ -297,7 +326,7 @@ def set_report_pages(plot_list, plots_per_page):
         
     return report_pages_plot_list
 
-def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues, ax1, red_avg_line = False):
+def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues, ax1, specilization=None):
     
     # Determine x axis field based upon the number of days between the 
     # first and last date.  If the difference is beyond the threshold
@@ -314,6 +343,16 @@ def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
     plot_title, plotlabels_lst = plotlabels(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, season_leagues)
     plot = 0
     
+    ### Sets the color mapping
+    
+    # 1st 3 lines darkening shades of blue, next 3 lines darkening shades of orange
+    if specilization == 'Numeric_Markers':
+        ax1.set_prop_cycle('color',['#000FFF','#888FFF','#D2D5FF','#FF8300', '#FFAD55', '#FFD5A9']) #@UndefinedVariable
+    
+    # Default CM is Dark2
+    else:
+        ax1.set_prop_cycle('color',plt.cm.Dark2(np.linspace(0,1,9))) #@UndefinedVariable
+    
     if not isIndividualBowlerSelection: # bowler list box selected by team(s) and not by bowler(s)
         bowlers = bowling_df['Bowler'].unique()
     
@@ -322,6 +361,20 @@ def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
         for sl in season_leagues:
             
             for column in primary_yaxis:
+                
+                # Set marker type depending on plot specilization
+                if specilization == 'Numeric_Markers':
+                    markersize = 5
+                    if round(plot/3 - int(plot/3), 2) == 0.00:
+                        marker = '$1$'
+                    elif round(plot/3 - int(plot/3), 2) == 0.33:
+                        marker = '$2$'
+                    elif round(plot/3 - int(plot/3), 2) == 0.67:
+                        marker = '$3$'
+                else:
+                    marker = 's'
+                    markersize = 4
+        
                 # To plot season leagues of different years use 'Days' on the x-axis rather than 'Date'
                 df = bowling_df[(bowling_df['Bowler'] == b) & (bowling_df['Season_League'] == sl)].copy()
                 df.sort_values(by=[x_axis_col], inplace=True)
@@ -329,14 +382,14 @@ def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
                 yaxis = df[column]
                 
                 # If true makes line red and dashed
-                if red_avg_line == True and (column == 'Avg_Before' or column == 'Avg_Total'):
+                if specilization == 'red_avg_line' and (column == 'Avg_Before' or column == 'Avg_Total'):
                     ax1.plot(xaxis, yaxis, label=plotlabels_lst[plot], linestyle=':', linewidth=2.0, color='#FF0000', 
                                        marker='s', markersize=4, markeredgecolor='black')
                 
-                # Else adheres to color map
+                # Else adhere to color map
                 else:
                     ax1.plot(xaxis, yaxis, label=plotlabels_lst[plot], linestyle='-', linewidth=2.0,
-                                       marker='s', markersize=4, markeredgecolor='black')
+                                       marker=marker, markersize=markersize, markeredgecolor='black')
                 plot+=1
                 
     # drop axis borders    
@@ -362,6 +415,7 @@ def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
     
     # Title for plt    
     plt.title(plot_title, fontsize=subplot_fontsize)
+    
 
 def buildSummaryTable_axes(df, ax1):
     
@@ -504,6 +558,9 @@ def starting_plot():
     ax2.tick_params(bottom="off", labelbottom="off", left="off", labelleft="off")
 
     return fig   
+
+def closeplot():
+    plt.close('all')
 
 if __name__ == '__main__':
         

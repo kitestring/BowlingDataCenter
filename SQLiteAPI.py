@@ -431,6 +431,63 @@ class BowlingDB():
 		
 		return df
 	
+	def teamGameHCP_query(self, bowler, seasonleagues):
+		
+		# Build WHERE conditions that will be inserted into the final query statement
+		sl = "' OR Season_League = '".join(seasonleagues)
+		
+		# There is a check to prevent an individual bowler selection,
+		# Thus no bowler by team selections will pass the check
+		bwl = "' OR Team = '".join(bowler)
+		
+		## Build Statement Query
+		
+		sql_statement = """
+		WITH InitialRowFilter_CalculateHCPBefore AS (
+			SELECT
+				Season_League,
+				Date,  
+				Team, 
+				Gm1,
+				Gm2,
+				Gm3,
+				CASE
+					WHEN CAST((220 - Avg_Before) * 0.9 as INT) < 0 THEN 0
+					ELSE CAST((220 - Avg_Before) * 0.9 as INT)
+				END AS HCP_Before
+			FROM Bowling 
+			wHERE 
+				(Team = '{b}') AND 
+				(Season_League = '{s}')	AND 
+				Position < 6
+		)
+		SELECT 
+			Season_League,
+			Date,  
+			Team, 
+			Sum(Gm1 + HCP_Before) AS Gm1_Tm_HCP,
+			Sum(Gm2 + HCP_Before) AS Gm2_Tm_HCP,
+			Sum(Gm3 + HCP_Before) AS Gm3_Tm_HCP
+		FROM InitialRowFilter_CalculateHCPBefore 
+		GROUP BY
+			Season_League, 
+			Team, 
+			Date 
+		ORDER BY
+			Season_League, 
+			Team, 
+			Date ASC;""".format(b=bwl, s=sl)
+		
+		df = pd.read_sql_query(sql_statement, self.conn)
+		
+		# Create Days Column
+		df['Days'] = self.getDaysSeries(df.copy())
+		
+		# Change 'Date' column as dtype from an object (Text) to datetime 
+		df['Date'] = pd.to_datetime(df['Date'], format="%Y-%m-%d")	
+		
+		return df
+	
 	def summaryTable_query(self, bowler, isIndividualBowlerSelection, seasonleagues):
 		
 		# Build WHERE conditions that will be inserted into the final query statement

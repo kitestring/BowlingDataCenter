@@ -47,8 +47,8 @@ class Window(tk.Frame):
         # I want self.speciality_plots to be sorted, except have None be the first item
         # This allows for the insertion of a list item at specified index
         insert_at = 0  # index at which to insert item, in this case "None"
-        speciality_plots_temp = sorted(['Cumulative Match Points', 'Game Comparison', 'Team Handicap Total',
-                                        'Summary Table', 'Series Scratch'])
+        speciality_plots_temp = sorted(['Cumulative Match Points', 'Game Comparison', 'Team Series w/ Handicap',
+                                        'Summary Table', 'Series Scratch', 'Team Game w/ Handicap'])
         self.speciality_plots = speciality_plots_temp[:]  # created copy of list analytical_columns as sec_yaxis_analytical_columns
         self.speciality_plots[insert_at:insert_at] = ['None']  # insert "None" within sec_yaxis_analytical_columns at index = insert_at
         self.speciality_plots_strvar = tk.StringVar(value=self.speciality_plots)
@@ -608,6 +608,15 @@ class Window(tk.Frame):
             return f + '.' + ftype
     
     def _delete_window(self):
+        
+        # Update json file with new plot information
+        # The use of the None here is totally confusing
+        # This should be implied as the JSON_Tools self object
+        # However it throws an error when I don't put a "place holder" parameter here???
+        JSON_Tools.dump_Data_To_File(None, self.jsonfilepath, db_filepath=self.master.file,
+                            reports=self.saved_reports, plots=self.saved_plots)
+        
+        reportbuilder.closeplot()
         self.bowling_db.closeDBConnection() 
         try:
             self.master.destroy()
@@ -759,6 +768,7 @@ class Window(tk.Frame):
             return 0
     
     def update_canvas(self, fig):
+            
         canvas = FigureCanvasTkAgg(fig, self.contentframe)
         canvas.show()
         canvas.get_tk_widget().grid(column=0, row=0, rowspan=11, sticky=(tk.N, tk.S, tk.E, tk.W))
@@ -841,8 +851,11 @@ class Window(tk.Frame):
         
         if self.sp != 'None' and self.season_leagues_selections != ['None'] and self.bowlers_selections != ['None']:
             
-            if self.sp == 'Team Handicap Total' and self.individualbowlerselection == True:
+            if (self.sp == 'Team Series w/ Handicap' and self.individualbowlerselection == True) or (self.sp == 'Team Game w/ Handicap' and self.individualbowlerselection == True):
                 self.statusmsg.set('Invalid selection: Must make a team selection and not an individual bowler selection.\n\n\n\n')
+                return None
+            elif self.sp == 'Team Game w/ Handicap' and len(self.bowlers_selections) > 2:
+                self.statusmsg.set('Too many selections to build this plot.  Must be 2 or less teams selected.\n\n\n\n')
                 return None
                 
         elif self.season_leagues_selections == ['None'] or self.bowlers_selections == ['None'] or self.primary_yaxis_fields == ['None']:
