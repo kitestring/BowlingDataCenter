@@ -78,8 +78,7 @@ class BowlingDB():
 		for row in bowling_df.iterrows():
 			row_values = row[1][columns_headers].tolist()
 			self.UploadTableRow(table='bowling', columns_as_list=columns_headers, row_values_as_list=row_values)
-		
-		
+			
 	def clean_dfMatchPoints(self, df, datasetdate):
 		
 		# Correct date format from mm/dd/yyyy to yyyy-mm-dd
@@ -108,6 +107,7 @@ class BowlingDB():
 		
 		# This corrects values that should be Null but in the string conversion are ''
 		query_statement = query_statement.replace("''","NULL")
+		query_statement = query_statement.replace('None',"NULL")
 		
 		# Uncomment to print the query, example query:
 		# INSERT OR REPLACE INTO bowling('Bowler_Date', 'Days', 'Week', 'Date', 'Gm1', 'Gm2', 'Gm3', 'SS', 'HCP', 'Avg_Before', 'Avg_After', 
@@ -120,7 +120,7 @@ class BowlingDB():
 		sql_statement = 'SELECT DISTINCT(%s) FROM %s;' % (colummn, table)
 		return pd.read_sql_query(sql_statement, self.conn)
 	
-	def getUniqueBowlerValuesWhenSeasonLeague(self, seasonleague_lst):
+	def getUniqueBowlerValues_WhenSeasonLeague(self, seasonleague_lst):
 		
 		sl = "' OR Season_League = '".join(seasonleague_lst)
 		sql_statement = "SELECT DISTINCT(Bowler) FROM Bowling wHERE Season_League = '{s}';".format(s=sl)
@@ -640,17 +640,136 @@ class BowlingDB():
 		
 		return df
 	
-	
-	
-	def plotreportquery(self, bowler, seasonleagues):
+	def NormalizeDatabase(self):
+		self.removeNullRows()
+		self.correctNullValuesInTemporaryBowlers()
 		
-		# Build Query
-		sl = "' OR Season_League = '".join(seasonleagues)
-		sql_statement = "SELECT * FROM Bowling wHERE Bowler = '{b}' AND (Season_League = '{s}') AND SS != '0' ORDER BY Season_League ASC;".format(b=bowler, s=sl)
+		print('done')
 		
-		return pd.read_sql_query(sql_statement, self.conn)
-	
-	def manualDB_Corrections(self):
-		query_statement = "UPDATE bowling SET Avg_Delta = 0 WHERE Bowler_Date = 'ken-kite_2018-09-04' or Bowler_Date = 'timothy-schramm_2018-09-11';"
+	def removeNullRows(self):
+		# Null rows are the result of temp bowlers not bowling a particular night.  Or they 
+		# arise from team  bowlers having entries before they joined the team.
+		# They contain no useful data and muddy the waters with other queries.  
+		# Note, many of the results will be "NULL" and Team = 0.
+		
+		
+		# Removes temp bowlers in the league db not bowling a particular night
+		query_statement = "DELETE FROM Bowling WHERE Gm1 = 'NULL';" 
 		self.cur.execute(query_statement)
 		
+		# Removes bowlers on a team with a NULL row
+		# Bowler has an entry with a date prior to them joining the team
+		# example Tyler Dye missing the 1st night, he's in the league db, and part of an existing team
+		query_statement = "DELETE FROM Bowling WHERE Team = 'NULL' and SS = 0;" 
+		self.cur.execute(query_statement)
+	
+	def correctNullValuesInTemporaryBowlers(self):
+		
+		self.setTeamValueForTempBowlers() # Sets the team name for temp bowlers = 'temp'
+		
+		# Sets the position value for temp bowlers = 0 because it is not known, 
+		# but it must be less than 6 to be allowed to pass through must analytically useful queries downstream
+		self.setPositionValueForTempBowlers() 
+
+		df = self.getTempBowlerRows()
+		
+		df['HCP'] = df.apply(self.calculate_HCP, axis=1)
+		df['Games'] = df.apply(self.game_count, axis=1)
+		df['Avg_Total'] = df.apply(self.calculate_Avg_Total, axis=1)
+		df['Rank'] = df.apply(self.rankbowlers, axis=1)
+		
+		
+		self.load_bowlingdata(df)
+		self.CommitDB()
+		
+		df = self.getTempBowlerRows()
+		df['Total_Avg_Delta'] = df.apply(self.calculate_Total_Avg_Delta, axis=1)
+		
+		
+		self.load_bowlingdata(df)
+		self.CommitDB()
+		
+	def setTeamValueForTempBowlers(self):
+		# When temps bowl they are  placed on Team = "Null"
+		# This will be replaced with Team = "Temp"
+		
+		query_statement = "UPDATE Bowling Set Team = 'Temp' WHERE Team = 'NULL';"
+		self.cur.execute(query_statement)
+	
+	def setPositionValueForTempBowlers(self):
+		
+		query_statement = "UPDATE Bowling Set Position = 0 WHERE Team = 'Temp';"
+		self.cur.execute(query_statement)
+	
+	def getTempBowlerRows(self):
+		
+		query_statement = "SELECT * FROM Bowling WHERE Team = 'Temp';"
+		return pd.read_sql_query(query_statement, self.conn)	
+	
+	def calculate_Avg_Total(self, row):
+		query_statement = """SELECT SUM(Gm1 + Gm2 + Gm3) AS Total_Pins
+							 FROM Bowling 
+ 							 WHERE 
+ 								Season_League = '{s}' AND
+ 								Bowler = '{b}' AND
+ 								Date <= '{d}' AND
+ 								SS != 0;""".format(s=row['Season_League'], b=row['Bowler'], d=row['Date'])
+		df = pd.read_sql_query(query_statement, self.conn)
+		Total_Pins = df['Total_Pins'].tolist()[0]
+		return int(Total_Pins / row['Games'])
+	
+	def game_count(self, row):
+		# returns the number of games played up to that rows date 
+		query_statement = """SELECT COUNT(Date) FROM Bowling 
+ 							WHERE 
+ 								Season_League = '{s}' AND
+ 								Bowler = '{b}' AND
+ 								Date <= '{d}' AND
+ 								SS != 0;""".format(s=row['Season_League'], b=row['Bowler'], d=row['Date'])
+		df = pd.read_sql_query(query_statement, self.conn)
+		bowling_outings_count = df['COUNT(Date)'].tolist()[0]
+		return bowling_outings_count * 3
+	
+	def calculate_HCP(self, row):
+		
+		return int((row['HS'] - row['SS']) / 3)
+	
+	def calculate_Total_Avg_Delta(self, row):
+		
+
+		query_statement = """SELECT MIN(Date) FROM Bowling 
+ 							WHERE 
+ 								Season_League = '{s}' AND
+ 								Bowler = '{b}' AND
+ 								SS != 0;""".format(s=row['Season_League'], b=row['Bowler'])
+		df = pd.read_sql_query(query_statement, self.conn)
+		starting_date = df['MIN(Date)'].tolist()[0]
+		
+		query_statement = """SELECT Avg_Total FROM Bowling 
+ 							WHERE 
+ 								Season_League = '{s}' AND
+ 								Bowler = '{b}' AND
+ 								Date = '{d}' AND
+ 								SS != 0;""".format(s=row['Season_League'], b=row['Bowler'], d=starting_date)
+
+		df = pd.read_sql_query(query_statement, self.conn)
+		starting_average = df['Avg_Total'].tolist()[0]
+								
+		return row['Avg_Total'] - starting_average
+		
+	
+	def rankbowlers(self, row):
+		# Bowler must bowl in >= 40% of max games bowled to be ranked
+		
+		query_statement = """SELECT * FROM Bowling 
+ 							WHERE 
+ 								Season_League = '{s}' AND
+ 								Date = '{d}';""".format(s=row['Season_League'], d=row['Date'])
+		df = pd.read_sql_query(query_statement, self.conn)
+		
+		min_games_required = df['Games'].max() * 0.4
+		
+		if row['Games'] >= min_games_required:
+			return len(df[(df['Avg_Total'] > row['Avg_Total']) & (df['Games'] >= min_games_required)]) + 1
+		else:
+			return 0

@@ -385,7 +385,7 @@ def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
                 
                 # Set marker type depending on plot specilization
                 if 'NumericMarkers_bythrees' in specilization or 'NumericMarkers_byfours' in specilization:
-                    markersize = 6
+                    markersize = 5
                     if round(plot/denominator - int(plot/denominator), 2) == 0.00:
                         marker = '$1$'
                     elif round(plot/denominator - int(plot/denominator), 2) == round(1/denominator, 2):
@@ -406,7 +406,7 @@ def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
                 # If true makes plot line red and dashed
                 if 'red_avg_line' in specilization and (column == 'Avg_Before' or column == 'Avg_Total'):
                     ax1.plot(xaxis, yaxis, label=plotlabels_lst[plot], linestyle=':', linewidth=2.0, color='#FF0000', 
-                                       marker='s', markersize=4, markeredgecolor='black')
+                                       marker='$A$', markersize=5, markeredgecolor='black')
                 
                 # Else adhere to color map
                 else:

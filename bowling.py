@@ -233,6 +233,7 @@ class Window(tk.Frame):
         # create tab commands for Load tab
         Load_tab.add_command(label='Define Dataset Date', command=self.set_load_date)
         Load_tab.add_command(label='Bowling Data', command=self.load_bowling_data)
+        Load_tab.add_command(label='Tester', command=self.MethodTester)
         
         tab_menu.add_cascade(label='Load', menu=Load_tab)  # Add Load tab object to tab_menu
         
@@ -350,15 +351,16 @@ class Window(tk.Frame):
             
             # Query depends on the radio button selection
             if self.bowler_selection_type_intvar.get() == 0:  # Individual Bowler Selection
-                new_bowlers = self.bowling_db.getUniqueBowlerValuesWhenSeasonLeague(seasonleagues)['Bowler'].tolist()
+                new_bowlers = self.bowling_db.getUniqueBowlerValues_WhenSeasonLeague(seasonleagues)['Bowler'].tolist()
             elif self.bowler_selection_type_intvar.get() == 1:  # Team Bowler Selection
                 new_bowlers = []
                 teams = self.bowling_db.getUniqueTeams_WhenSeasonLeague(seasonleagues)['Team'].tolist()
                 for t in teams:
                     # Verify that each item is an int
-                    # Note, the query above will have some 'NULL' values and
-                    # substitute bowlers will be on team 0 which I'm not including 
-                    # in the list of selectable bowlers.
+                    # Note, the query above will have some 'NULL' & 0 values for team names
+                    # substitute bowlers will be on team 0 when their on the bowlers list but didn't bowl
+                    # substitute bowlers will be on team NULL when the do bowl 
+                    # Neither will be included in the list of selectable bowlers via team selection.
                     if isinstance(t, int):
                         # This forces each item to have the same number of characters 
                         # and thus will sort nicely
@@ -675,6 +677,14 @@ class Window(tk.Frame):
             self.statusmsg.set('One or more of the selected files are invalid.  Must select BowlerList.csv & LeagueSummary.csv only.\n\n\n\n')
             return None
         
+        # Assign the correct csv file path to the correct dataframe file path variable
+        if 'BowlerList' in csv_file_paths[0].split('/')[-1]:
+            bowlerlist_csv = csv_file_paths[0]
+            leaguesummary_csv = csv_file_paths[1]
+        elif 'LeagueSummary' in csv_file_paths[0].split('/')[-1]:
+            bowlerlist_csv = csv_file_paths[1]
+            leaguesummary_csv = csv_file_paths[0]
+        
         # # Open TeamPoints.xlsx file
         xlsx_file = self.file_open(dialogtitle='Select TeamPoints.xlsx file', ftype='xlsx',
                                       fdescription='Excel File',
@@ -706,8 +716,8 @@ class Window(tk.Frame):
             teampoints_df = self.bowling_db.clean_dfMatchPoints(teampoints_df, dataset_date)
         
         # # read both csv files into dataframes
-        BowlerList_df = pd.read_csv(csv_file_paths[0])
-        LeagueSummary_df = pd.read_csv(csv_file_paths[1])
+        BowlerList_df = pd.read_csv(bowlerlist_csv)
+        LeagueSummary_df = pd.read_csv(leaguesummary_csv)
         
         # ## Combine dataframaes
         
@@ -747,6 +757,7 @@ class Window(tk.Frame):
         
         bowling_df.fillna("''", inplace=True)  # These values will be converted to NULL prior to loading to SQL
         self.bowling_db.load_bowlingdata(bowling_df)
+        self.bowling_db.NormalizeDatabase()
         self.update_bowlers_lbox()
         
         self.bowling_db.CommitDB()
@@ -1063,9 +1074,11 @@ class Window(tk.Frame):
         JSON_Tools.dump_Data_To_File(None, self.jsonfilepath, db_filepath=self.master.file,
                             reports=self.saved_reports, plots=self.saved_plots)
         
-        
         stdout = check_output('python reportbuilder.py {j} {p} {d} {u}'.format(j=self.jsonfilepath, p=temp_pdf_file, d=self.master.file, u=self.utils_directory,), shell=True, universal_newlines=True)
         self.statusmsg.set(stdout)
+        
+    def MethodTester(self):
+        self.bowling_db.NormalizeDatabase()
 
 class popupWindow(object):
 
