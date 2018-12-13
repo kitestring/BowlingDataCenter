@@ -643,8 +643,7 @@ class BowlingDB():
 	def NormalizeDatabase(self):
 		self.removeNullRows()
 		self.correctNullValuesInTemporaryBowlers()
-		
-		print('done')
+		self.correctInvalidTotal_Avg_Delta_Rows()
 		
 	def removeNullRows(self):
 		# Null rows are the result of temp bowlers not bowling a particular night.  Or they 
@@ -689,6 +688,16 @@ class BowlingDB():
 		self.load_bowlingdata(df)
 		self.CommitDB()
 		
+	def correctInvalidTotal_Avg_Delta_Rows(self):
+		df = self.getInvalidTotal_Avg_Delta_Rows()
+		
+		# If False then there are no Invalid Total_Avg_Delta Rows to correct
+		if df.shape[0] != 0:
+			df['Total_Avg_Delta'] = df.apply(self.calculate_Total_Avg_Delta, axis=1)
+			
+			self.load_bowlingdata(df)
+			self.CommitDB()
+		
 	def setTeamValueForTempBowlers(self):
 		# When temps bowl they are  placed on Team = "Null"
 		# This will be replaced with Team = "Temp"
@@ -700,6 +709,11 @@ class BowlingDB():
 		
 		query_statement = "UPDATE Bowling Set Position = 0 WHERE Team = 'Temp';"
 		self.cur.execute(query_statement)
+	
+	
+	def getInvalidTotal_Avg_Delta_Rows(self):
+		query_statement = "SELECT * FROM Bowling WHERE Total_Avg_Delta = '-9999';"
+		return pd.read_sql_query(query_statement, self.conn)
 	
 	def getTempBowlerRows(self):
 		

@@ -448,7 +448,7 @@ def build_axes(bowling_df, primary_yaxis, bowlers, isIndividualBowlerSelection, 
 
 def buildSummaryTable_axes(df, ax1):
     
-    bowlers = sorted(df['Bowler'].unique().tolist())
+    bowlers = sorted(df['Bowler'].unique().tolist()) # Bowlers sorted alphabetically
     season_leagues = sorted(df['Season_league'].unique().tolist())
     
     # Build season bests string

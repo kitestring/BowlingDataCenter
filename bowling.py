@@ -224,6 +224,7 @@ class Window(tk.Frame):
         Database_tab.add_command(label='New', command=self.database_new)
         Database_tab.add_command(label='Connect', command=self.database_connect)
         Database_tab.add_command(label='Current', command=self.database_display_current_connection)
+        Database_tab.add_command(label='Normalize', command=self.NormalizeDatabase)
         
         tab_menu.add_cascade(label='Database', menu=Database_tab)  # Add Database tab object to tab_menu
         
@@ -233,7 +234,6 @@ class Window(tk.Frame):
         # create tab commands for Load tab
         Load_tab.add_command(label='Define Dataset Date', command=self.set_load_date)
         Load_tab.add_command(label='Bowling Data', command=self.load_bowling_data)
-        Load_tab.add_command(label='Tester', command=self.MethodTester)
         
         tab_menu.add_cascade(label='Load', menu=Load_tab)  # Add Load tab object to tab_menu
         
@@ -1077,8 +1077,9 @@ class Window(tk.Frame):
         stdout = check_output('python reportbuilder.py {j} {p} {d} {u}'.format(j=self.jsonfilepath, p=temp_pdf_file, d=self.master.file, u=self.utils_directory,), shell=True, universal_newlines=True)
         self.statusmsg.set(stdout)
         
-    def MethodTester(self):
+    def NormalizeDatabase(self):
         self.bowling_db.NormalizeDatabase()
+        self.statusmsg.set('Database Normalization Complete\n\n\n')
 
 class popupWindow(object):
 
